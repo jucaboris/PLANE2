@@ -25,4 +25,4 @@ Config padrão inicia na **rodada 6** e limita inputs para 2.
 - `config.js` — parâmetros do jogo
 - `pins.js` — tabela de PINs
 - `engine.js` — regras do jogo / validação / resolução
-- `ui.js` — fase/timer, handlers e render
+- `ui.js` — fase/timer, handlers e render  
