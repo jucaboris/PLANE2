@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Decision Rights Simulator</title>
+  <style>
+    :root{
+      --bg:#07111a; --panel:#0c1c29; --panel2:#091722;
+      --text:#d6e6f2; --muted:#7fa2b7; --ok:#4ade80; --warn:#fbbf24; --bad:#fb7185;
+      --accent:#7dd3fc; --accent2:#a78bfa; --border:rgba(255,255,255,.12);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    html,body{height:100%; margin:0; background:radial-gradient(1200px 800px at 30% 10%, #0b2232 0%, var(--bg) 55%); color:var(--text); font-family:var(--sans);}
+    .wrap{max-width:1200px; margin:0 auto; padding:18px;}
+    .topbar{
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      padding:14px 16px; border:1px solid var(--border); border-radius:16px;
+      background:linear-gradient(180deg, rgba(125,211,252,.09), rgba(12,28,41,.85));
+      box-shadow:0 12px 30px rgba(0,0,0,.35);
+      position:relative; overflow:hidden;
+    }
+    .scanline:before{
+      content:""; position:absolute; inset:-100% 0 auto 0; height:220%;
+      background:linear-gradient(180deg, transparent 0%, rgba(125,211,252,.10) 48%, transparent 52%);
+      animation:scan 6s linear infinite;
+      pointer-events:none;
+    }
+    @keyframes scan{0%{transform:translateY(-25%)}100%{transform:translateY(25%)}}
+    .brand{display:flex; flex-direction:column; gap:2px;}
+    .brand h1{margin:0; font-size:16px; letter-spacing:.08em; text-transform:uppercase;}
+    .brand .sub{font-family:var(--mono); color:var(--muted); font-size:12px;}
+    .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end;}
+    select,input,button{
+      border-radius:12px; border:1px solid var(--border); background:rgba(7,17,26,.55);
+      color:var(--text); padding:10px 12px; font-family:var(--mono); font-size:12px;
+      outline:none;
+    }
+    button{cursor:pointer; background:linear-gradient(180deg, rgba(125,211,252,.16), rgba(167,139,250,.10));}
+    button:hover{border-color:rgba(125,211,252,.55)}
+    .grid{display:grid; grid-template-columns: 1.05fr .95fr; gap:14px; margin-top:14px;}
+    .card{border:1px solid var(--border); border-radius:16px; background:rgba(12,28,41,.72); box-shadow:0 10px 28px rgba(0,0,0,.35); overflow:hidden;}
+    .card .hd{display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(9,23,34,.75); border-bottom:1px solid var(--border);}
+    .hd .ttl{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-family:var(--mono);}
+    .hd .pill{font-family:var(--mono); font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid var(--border); color:var(--text);}
+    .body{padding:14px;}
+    .stats{display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;}
+    .stat{border:1px solid var(--border); border-radius:14px; padding:10px 12px; background:rgba(7,17,26,.35);}
+    .stat .k{font-family:var(--mono); color:var(--muted); font-size:11px;}
+    .stat .v{font-family:var(--mono); font-size:18px; margin-top:6px;}
+    .bars{display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:12px;}
+    .bar{border:1px solid var(--border); border-radius:14px; padding:10px 12px; background:rgba(7,17,26,.35);}
+    .bar .k{font-family:var(--mono); color:var(--muted); font-size:11px; display:flex; justify-content:space-between;}
+    .meter{height:10px; border-radius:999px; background:rgba(255,255,255,.10); overflow:hidden; margin-top:8px;}
+    .fill{height:100%; width:50%; background:linear-gradient(90deg, rgba(125,211,252,.8), rgba(167,139,250,.8));}
+    .hint{margin-top:12px; padding:10px 12px; border:1px dashed rgba(125,211,252,.35); border-radius:14px; font-family:var(--mono); font-size:12px; color:var(--muted);}
+    .map{margin-top:12px; border:1px solid var(--border); border-radius:14px; background:
+      radial-gradient(300px 140px at 70% 30%, rgba(125,211,252,.12), transparent 60%),
+      radial-gradient(250px 160px at 30% 70%, rgba(167,139,250,.10), transparent 65%),
+      rgba(7,17,26,.35);
+      height:150px; position:relative; overflow:hidden;}
+    .blip{position:absolute; width:10px; height:10px; border-radius:50%;
+      background:rgba(125,211,252,.95); box-shadow:0 0 16px rgba(125,211,252,.85);}
+    .map .label{position:absolute; bottom:10px; left:12px; font-family:var(--mono); font-size:12px; color:var(--muted);}
+    .consoleRow{display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:10px; align-items:center;}
+    .log{height:360px; overflow:auto; padding:12px; font-family:var(--mono); font-size:12px; background:rgba(7,17,26,.35); border-top:1px solid var(--border);}
+    .log div{padding:4px 0; border-bottom:1px dotted rgba(255,255,255,.06);}
+    .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+    .footer{margin-top:12px; font-family:var(--mono); color:var(--muted); font-size:11px; text-align:center;}
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr}
+      .stats{grid-template-columns: repeat(2, 1fr);}
+      .consoleRow{grid-template-columns: 1fr 1fr; grid-auto-rows:auto;}
+      .consoleRow button{grid-column: 1 / span 2;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar scanline">
+      <div class="brand">
+        <h1>Decision Rights Simulator</h1>
+        <div class="sub">Central de Comando • MBM/PBM • PIN híbrido (cards + tela)</div>
+      </div>
+      <div class="controls">
+        <label style="display:flex;gap:8px;align-items:center;">
+          <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">Modo</span>
+          <select id="modeSelect">
+            <option value="G1">G1 — Centralização</option>
+            <option value="G2">G2 — Anarquia</option>
+            <option value="G3" selected>G3 — Direitos claros</option>
+          </select>
+        </label>
+        <label style="display:flex;gap:8px;align-items:center;">
+          <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">Alvo</span>
+          <select id="airportSelect" disabled>
+            <option value="A" selected>A</option>
+            <option value="B">B</option>
+          </select>
+        </label>
+        <button id="startBtn">Iniciar</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="hd">
+          <div class="ttl">Status</div>
+          <div class="pill"><span id="phase">STATUS</span> • <span id="timer">--</span>s</div>
+        </div>
+        <div class="body">
+          <div class="stats">
+            <div class="stat"><div class="k">Rodada</div><div class="v" id="round">1</div></div>
+            <div class="stat"><div class="k">Distância</div><div class="v" id="dist">0</div></div>
+            <div class="stat"><div class="k">Alvo</div><div class="v" id="target">A</div></div>
+            <div class="stat"><div class="k">Inputs restantes</div><div class="v" id="inputsRemaining">∞</div></div>
+          </div>
+
+          <div class="bars">
+            <div class="bar">
+              <div class="k"><span>Combustível</span><span id="fuel">18</span></div>
+              <div class="meter"><div class="fill" id="fuelBar"></div></div>
+            </div>
+            <div class="bar">
+              <div class="k"><span>Motor</span><span id="engine">10</span></div>
+              <div class="meter"><div class="fill" id="engineBar"></div></div>
+            </div>
+            <div class="bar">
+              <div class="k"><span>Saúde</span><span id="health">10</span></div>
+              <div class="meter"><div class="fill" id="healthBar"></div></div>
+            </div>
+          </div>
+
+          <div class="map">
+            <div class="blip" id="blip" style="left:18px;top:72px;"></div>
+            <div class="label">MAPA • progresso abstrato até o alvo</div>
+          </div>
+
+          <div class="hint" id="g1Hint"></div>
+          <div class="hint" id="ruleHint">
+            Dica: No INPUT, digite o PIN e selecione (papel + ação). Em G1 use PIN combinado PPPP-RRRR.
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <div class="ttl">Console</div>
+          <div class="pill">Log</div>
+        </div>
+        <div class="body">
+          <div class="consoleRow">
+            <select id="roleSelect">
+              <option value="pilot">Piloto</option>
+              <option value="engineer">Engenheiro</option>
+              <option value="cabin">Cabine</option>
+              <option value="copilot">Copiloto</option>
+            </select>
+
+            <select id="actionSelect"></select>
+
+            <input id="pinInput" placeholder="PIN (ou PPPP-RRRR no G1)" maxlength="9" />
+
+            <button id="submitBtn">Enviar</button>
+          </div>
+
+          <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+            <button id="routeA" disabled>Trocar rota → A</button>
+            <button id="routeB" disabled>Trocar rota → B</button>
+            <button id="skipBtn" disabled>Sem ação (registrar)</button>
+          </div>
+        </div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+
+    <div class="footer">Versão estática (GitHub Pages). Sem backend. Cards impressos controlam PINs e informação exclusiva.</div>
+  </div>
+
+  <script type="module" src="./ui.js"></script>
+</body>
+</html>
