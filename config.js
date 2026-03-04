@@ -3,9 +3,9 @@ export const GAME_CONFIG = {
   roundsMax: 10,
 
   timing: {
-    roundSeconds: 45,
-    phases: { STATUS: 5, DELIB: 25, INPUT: 12, RESOLVE: 3 },
-    postStorm: { inputSeconds: 8 },
+    roundSeconds: 60,
+    phases: { STATUS: 5, DELIB: 25, INPUT: 20, RESOLVE: 10 },
+    postStorm: { inputSeconds: 20 }, // Mantendo igual para não quebrar a lógica, mas você pode alterar
   },
 
   resources: {
@@ -64,14 +64,10 @@ export const GAME_CONFIG = {
       emergencyOverhead: { fuelPenalty: 1, consumesAuthorizationSlot: true },
       routeChangeOverhead: { consumesFullRoundAction: true },
     },
-
     G2: {
       seatRotation: true,
       conflictRules: {
-        detect: {
-          multipleInputsSameRole: true,
-          multipleRouteChangesSameRound: true,
-        },
+        detect: { multipleInputsSameRole: true, multipleRouteChangesSameRound: true },
         penalties: [
           { conflicts: 1, fuel: 1, engine: 0, annulRoundActions: false },
           { conflicts: 2, fuel: 2, engine: 1, annulRoundActions: false },
@@ -79,7 +75,6 @@ export const GAME_CONFIG = {
         ],
       },
     },
-
     G3: {
       seatRotation: true,
       strictDomain: true,
