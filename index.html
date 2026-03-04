@@ -3,38 +3,229 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Decision Rights Simulator - Retro Edition</title>
+  <title>Sky Authority - Decision Rights Simulator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-cockpit: #111111;
-      --panel-gray: #c0c0c0;
-      --panel-dark: #555555;
-      --crt-bg: #001100;
-      --crt-text: #39ff14; /* Verde Neon Retro */
-      --crt-warn: #ffb000;
-      --crt-bad: #ff3333;
-      --btn-red: #d32f2f;
-      --btn-red-dark: #9a0007;
-      --pixel-font: 'Press Start 2P', cursive;
-      --text-font: 'VT323', monospace;
+      --bg-cockpit: #111111; --panel-gray: #c0c0c0; --panel-dark: #555555;
+      --crt-bg: #001100; --crt-text: #39ff14; --crt-warn: #ffb000; --crt-bad: #ff3333;
+      --btn-red: #d32f2f; --btn-red-dark: #9a0007; --pixel-font: 'Press Start 2P', cursive; --text-font: 'VT323', monospace;
     }
     
     html, body {
-      height: 100%; margin: 0; 
-      background-color: var(--bg-cockpit); 
-      background-image: linear-gradient(#222 2px, transparent 2px), linear-gradient(90deg, #222 2px, transparent 2px);
-      background-size: 30px 30px;
-      color: white; 
-      font-family: var(--text-font);
+      height: 100%; margin: 0; background-color: var(--bg-cockpit); 
+      color: white; font-family: var(--text-font); overflow: hidden;
     }
 
-    .wrap { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    /* Estilos das Novas Telas */
+    .screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background-size: cover; background-position: center; z-index: 10;
+    }
+    
+    #splashScreen { background-image: url('splash.jpg'); cursor: pointer; }
+    #splashScreen p { margin-top: auto; margin-bottom: 50px; font-family: var(--pixel-font); font-size: 16px; animation: blink 1.5s infinite; text-shadow: 2px 2px #000; }
 
-    /* Topbar - Estilo Placa de Avião */
-    .topbar {
+    #menuScreen, #charactersScreen, #instructionsScreen { background-image: url('splash.jpg'); display: none; }
+    
+    .modal-menu {
+      background: rgba(0, 17, 0, 0.85); border: 4px inset #555; padding: 30px;
+      display: flex; flex-direction: column; gap: 15px; width: 400px;
+      text-align: center; font-family: var(--pixel-font);
+    }
+    .modal-menu h2 { color: var(--crt-text); margin-bottom: 20px; font-size: 20px;}
+    .modal-menu button {
+      background: #222; color: #fff; padding: 15px; font-size: 14px;
+      border: 2px solid #555; cursor: pointer; text-transform: uppercase;
+      font-family: var(--pixel-font);
+    }
+    .modal-menu button:hover { background: var(--crt-text); color: #000; }
+    
+    .content-screen {
+      background: rgba(0, 17, 0, 0.95); border: 4px inset #555; padding: 30px;
+      width: 80%; max-width: 800px; height: 70%; overflow-y: auto; color: var(--crt-text);
+      font-size: 22px;
+    }
+
+    /* Jogo Original */
+    #gameScreen { 
+      display: none; height: 100%; overflow-y: auto; align-items: flex-start;
+      background-image: linear-gradient(#222 2px, transparent 2px), linear-gradient(90deg, #222 2px, transparent 2px);
+      background-size: 30px 30px;
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 20px; width: 100%; }
+
+    /* Componentes Cockpit */
+    .topbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 16px; background-color: var(--panel-gray); border: 4px solid white; border-bottom-color: #555; border-right-color: #555; color: black; margin-bottom: 20px; }
+    .brand h1 { margin: 0; font-family: var(--pixel-font); font-size: 16px; text-transform: uppercase; text-shadow: 2px 2px #fff;}
+    .brand .sub { font-family: var(--text-font); font-size: 18px; color: #333; font-weight: bold;}
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    
+    button { font-family: var(--pixel-font); font-size: 10px; padding: 12px; cursor: pointer; background-color: var(--btn-red); color: white; border: 4px solid #ff6659; border-bottom-color: var(--btn-red-dark); border-right-color: var(--btn-red-dark); text-transform: uppercase; }
+    button:active { border-color: var(--btn-red-dark); border-bottom-color: #ff6659; border-right-color: #ff6659; }
+    button:disabled { background-color: #777; border-color: #999; border-bottom-color: #444; border-right-color: #444; color: #ccc; cursor: not-allowed; }
+    select, input { font-family: var(--text-font); font-size: 18px; padding: 6px; background-color: #fff; color: #000; border: 4px solid #555; border-bottom-color: #fff; border-right-color: #fff; outline: none; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card { background-color: var(--panel-gray); border: 4px solid white; border-bottom-color: #555; border-right-color: #555; padding: 4px; }
+    .card .hd { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background-color: var(--panel-dark); color: white; border: 2px solid #333; border-bottom-color: #777; border-right-color: #777; }
+    .hd .ttl { font-family: var(--pixel-font); font-size: 12px; }
+    .hd .pill { font-size: 18px; background: #000; padding: 2px 8px; border: 2px inset #555; color: var(--crt-text); }
+    .body { padding: 14px; color: black; }
+    .stats, .bars, .log, .map { background-color: var(--crt-bg); color: var(--crt-text); border: 4px inset #555; padding: 12px; margin-bottom: 12px; position: relative; overflow: hidden; }
+    .stats::after, .bars::after, .log::after, .map::after { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); z-index: 2; background-size: 100% 4px, 6px 100%; pointer-events: none; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center; }
+    .stat .k { font-size: 16px; text-transform: uppercase; opacity: 0.8; }
+    .stat .v { font-family: var(--pixel-font); font-size: 16px; margin-top: 8px; }
+    .bars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .bar .k { display: flex; justify-content: space-between; font-size: 18px; margin-bottom: 4px;}
+    .meter { height: 16px; background: #003300; border: 2px solid #39ff14; }
+    .fill { height: 100%; background: #39ff14; }
+    .map { height: 150px; background-image: radial-gradient(#003300 2px, transparent 2px); background-size: 10px 10px; }
+    .blip { position: absolute; width: 12px; height: 12px; background: white; box-shadow: 0 0 10px white; z-index: 3; animation: blink 1s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .map .label { position: absolute; bottom: 10px; left: 12px; font-size: 16px; z-index: 3; }
+    .consoleRow { display: flex; flex-direction: column; gap: 10px; background: #999; padding: 12px; border: 4px inset #fff; }
+    .consoleRow .inputs-wrap { display: flex; gap: 10px; }
+    .log { height: 280px; overflow-y: auto; font-size: 20px; line-height: 1.2; text-shadow: 0 0 5px var(--crt-text); }
+    .log div { padding: 4px 0; border-bottom: 1px dashed #003300; }
+    .ok { color: var(--crt-text); } .warn { color: var(--crt-warn); text-shadow: 0 0 5px var(--crt-warn); } .bad { color: var(--crt-bad); text-shadow: 0 0 5px var(--crt-bad); }
+    .hint { margin-top: 12px; padding: 10px; background: #000; color: #ccc; border: 2px solid #555; font-size: 16px; }
+    
+    @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } .consoleRow .inputs-wrap { flex-direction: column; } }
+  </style>
+</head>
+<body>
+
+  <audio id="bgMusic" loop src="http://googleusercontent.com/file_content/0"></audio>
+
+  <div id="splashScreen" class="screen">
+    <p>CLIQUE NA TELA PARA INICIAR</p>
+  </div>
+
+  <div id="menuScreen" class="screen">
+    <div class="modal-menu">
+      <h2>SKY AUTHORITY</h2>
+      <button id="btnIniciar">INICIAR</button>
+      <button id="btnPersonagens">PERSONAGENS</button>
+      <button id="btnInstrucoes">INSTRUÇÕES</button>
+      <button id="btnSair">SAIR</button>
+    </div>
+  </div>
+
+  <div id="charactersScreen" class="screen">
+    <div class="content-screen">
+      <h2 style="font-family: var(--pixel-font);">PERSONAGENS A.I.R.</h2>
+      <p>Aguardando upload do arquivo de personagens...</p>
+      <br><br>
+      <button class="btnVoltar">VOLTAR AO MENU</button>
+    </div>
+  </div>
+
+  <div id="instructionsScreen" class="screen">
+    <div class="content-screen">
+      <h2 style="font-family: var(--pixel-font);">INSTRUÇÕES</h2>
+      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam in dui mauris. Vivamus hendrerit arcu sed erat molestie vehicula. Sed auctor neque eu tellus rhoncus ut eleifend nibh porttitor.</p>
+      <br><br>
+      <button class="btnVoltar">VOLTAR AO MENU</button>
+    </div>
+  </div>
+
+  <div id="gameScreen" class="screen">
+    <div class="wrap">
+      <div class="topbar">
+        <div class="brand">
+          <h1>Decisão: Cockpit</h1>
+          <div class="sub">Central de Comando A.I.R.</div>
+        </div>
+        <div class="controls">
+          <label style="display:flex;gap:8px;align-items:center;">
+            <span style="font-weight:bold;">MODO</span>
+            <select id="modeSelect">
+              <option value="G1">G1 - Central</option>
+              <option value="G2">G2 - Caos</option>
+              <option value="G3" selected>G3 - Direitos</option>
+            </select>
+          </label>
+          <label style="display:flex;gap:8px;align-items:center;">
+            <span style="font-weight:bold;">ALVO</span>
+            <select id="airportSelect">
+              <option value="A" selected>A</option>
+              <option value="B">B</option>
+            </select>
+          </label>
+          <button id="startBtn">INICIAR</button>
+          <button id="resetBtn" style="background-color: #555; border-color: #888; border-bottom-color: #222; border-right-color: #222;">RESET</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="hd">
+            <div class="ttl">SISTEMAS DE VOO</div>
+            <div class="pill"><span id="phase">STATUS</span> | <span id="timer">--</span>S</div>
+          </div>
+          <div class="body">
+            <div class="stats">
+              <div class="stat"><div class="k">Rodada</div><div class="v" id="round">1</div></div>
+              <div class="stat"><div class="k">Dist</div><div class="v" id="dist">0</div></div>
+              <div class="stat"><div class="k">Alvo</div><div class="v" id="target">A</div></div>
+              <div class="stat"><div class="k">Inputs</div><div class="v" id="inputsRemaining">∞</div></div>
+            </div>
+
+            <div class="bars">
+              <div class="bar"><div class="k"><span>FUEL</span><span id="fuel">18</span></div><div class="meter"><div class="fill" id="fuelBar"></div></div></div>
+              <div class="bar"><div class="k"><span>ENG</span><span id="engine">10</span></div><div class="meter"><div class="fill" id="engineBar"></div></div></div>
+              <div class="bar"><div class="k"><span>HLT</span><span id="health">10</span></div><div class="meter"><div class="fill" id="healthBar"></div></div></div>
+            </div>
+
+            <div class="map">
+              <div class="blip" id="blip" style="left:18px;top:72px;"></div>
+              <div class="label">RADAR DE APROXIMAÇÃO</div>
+            </div>
+            <div class="hint" id="g1Hint"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="hd">
+            <div class="ttl">TERMINAL DE COMANDO</div>
+            <div class="pill">LOG</div>
+          </div>
+          <div class="body">
+            <div class="consoleRow">
+              <div class="inputs-wrap">
+                <select id="roleSelect" style="flex:1;">
+                  <option value="pilot">Piloto</option>
+                  <option value="engineer">Engenheiro</option>
+                  <option value="cabin">Cabine</option>
+                  <option value="copilot">Copiloto</option>
+                </select>
+                <select id="actionSelect" style="flex:1;"></select>
+              </div>
+              <div class="inputs-wrap">
+                <input id="pinInput" placeholder="INSERIR PIN..." maxlength="9" style="flex:2;" />
+                <button id="submitBtn" style="flex:1; background-color: #228b22; border-color: #32cd32; border-bottom-color: #006400; border-right-color: #006400;">EXECUTAR</button>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+              <button id="routeA" style="flex:1;">ROTA A</button>
+              <button id="routeB" style="flex:1;">ROTA B</button>
+              <button id="skipBtn" style="flex:1; background-color: #ff9800; border-color: #ffc107; border-bottom-color: #f57c00; border-right-color: #f57c00;">PULAR AÇÃO</button>
+            </div>
+          </div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./ui.js"></script>
+</body>
+</html>    .topbar {
       display: flex; gap: 12px; align-items: center; justify-content: space-between;
       padding: 16px; 
       background-color: var(--panel-gray);
