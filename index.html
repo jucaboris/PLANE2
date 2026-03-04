@@ -95,11 +95,44 @@
     .hint { margin-top: 12px; padding: 10px; background: #000; color: #ccc; border: 2px solid #555; font-size: 16px; }
     
     @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } .consoleRow .inputs-wrap { flex-direction: column; } }
+  /* Estilos da Galeria de Personagens */
+    .char-container {
+      margin-top: 20px;
+    }
+    .group-title {
+      font-family: var(--pixel-font);
+      font-size: 16px;
+      color: white;
+      text-shadow: 2px 2px #000;
+      margin-top: 40px;
+      margin-bottom: 15px;
+      border-bottom: 2px dashed #555;
+      padding-bottom: 10px;
+      text-align: left;
+    }
+    .char-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+    .char-card img {
+      width: 100%;
+      border: 3px solid #333;
+      border-radius: 4px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      cursor: pointer;
+    }
+    .char-card img:hover {
+      transform: scale(1.05);
+      border-color: var(--crt-text);
+      box-shadow: 0 0 15px var(--crt-text);
+    }
+  
   </style>
 </head>
 <body>
 
-  <audio id="bgMusic" loop src="http://googleusercontent.com/file_content/0"></audio>
+<audio id="bgMusic" loop src="trilha.mp3"></audio>
 
   <div id="splashScreen" class="screen">
     <p>CLIQUE NA TELA PARA INICIAR</p>
@@ -115,21 +148,84 @@
     </div>
   </div>
 
-  <div id="charactersScreen" class="screen">
-    <div class="content-screen">
-      <h2 style="font-family: var(--pixel-font);">PERSONAGENS A.I.R.</h2>
-      <p>Aguardando upload do arquivo de personagens...</p>
-      <br><br>
-      <button class="btnVoltar">VOLTAR AO MENU</button>
+<div id="charactersScreen" class="screen">
+    <div class="content-screen" style="width: 90%; max-width: 1100px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="font-family: var(--pixel-font); margin: 0;">DOSSIÊ DE TRIPULAÇÃO E CIVIS</h2>
+        <button class="btnVoltar" style="background-color: #555;">VOLTAR AO MENU</button>
+      </div>
+
+      <div class="char-container">
+        <div class="group-title">G1 - COMANDO CENTRALIZADO</div>
+        <div class="char-gallery">
+          <div class="char-card"><img src="1.jpg" alt="Piloto G1"></div>
+          <div class="char-card"><img src="2.jpg" alt="Engenheiro G1"></div>
+          <div class="char-card"><img src="3.jpg" alt="Cabine G1"></div>
+          <div class="char-card"><img src="4.jpg" alt="Copiloto G1"></div>
+        </div>
+
+        <div class="group-title">G2 - ACESSO LIVRE (CAOS)</div>
+        <div class="char-gallery">
+          <div class="char-card"><img src="5.jpg" alt="Piloto G2"></div>
+          <div class="char-card"><img src="6.jpg" alt="Engenheiro G2"></div>
+          <div class="char-card"><img src="7.jpg" alt="Cabine G2"></div>
+          <div class="char-card"><img src="8.jpg" alt="Copiloto G2"></div>
+        </div>
+
+        <div class="group-title">G3 - DOMÍNIO ESTRITO (DIREITOS)</div>
+        <div class="char-gallery">
+          <div class="char-card"><img src="9.jpg" alt="Piloto G3"></div>
+          <div class="char-card"><img src="10.jpg" alt="Engenheiro G3"></div>
+          <div class="char-card"><img src="11.jpg" alt="Cabine G3"></div>
+          <div class="char-card"><img src="12.jpg" alt="Copiloto G3"></div>
+        </div>
+
+        <div class="group-title">PASSAGEIROS CIVIS (INFLUÊNCIA)</div>
+        <div class="char-gallery">
+          <div class="char-card"><img src="13.jpg" alt="Passageiro Médico"></div>
+          <div class="char-card"><img src="14.jpg" alt="Investidor VIP"></div>
+          <div class="char-card"><img src="15.jpg" alt="Passageiro Mal-Estar"></div>
+          <div class="char-card"><img src="16.jpg" alt="Passageiro Filmando"></div>
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin-top: 40px;">
+        <button class="btnVoltar">VOLTAR AO MENU</button>
+      </div>
     </div>
   </div>
 
-  <div id="instructionsScreen" class="screen">
+<div id="instructionsScreen" class="screen">
     <div class="content-screen">
-      <h2 style="font-family: var(--pixel-font);">INSTRUÇÕES</h2>
-      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam in dui mauris. Vivamus hendrerit arcu sed erat molestie vehicula. Sed auctor neque eu tellus rhoncus ut eleifend nibh porttitor.</p>
+      <h2 style="font-family: var(--pixel-font); color: var(--crt-text); border-bottom: 2px dashed #003300; padding-bottom: 10px;">MANUAL DE VOO: SKY AUTHORITY</h2>
+      
+      <div style="font-family: var(--text-font); font-size: 20px; line-height: 1.4; color: white;">
+        <p><strong style="color: var(--crt-text);">OBJETIVO:</strong><br>
+        A sua tripulação deve gerir os sistemas da aeronave para alcançar a distância necessária e pousar em segurança no Aeroporto A (Distância 8) ou B (Distância 14). Se o Combustível (FUEL), Motor (ENG) ou Saúde (HLT) chegarem a zero, o avião cai.</p>
+        
+        <p><strong style="color: var(--crt-text);">TEMPO DAS RODADAS (60 Segundos):</strong><br>
+        O tempo é implacável. Cada rodada é dividida em 4 fases automáticas:<br>
+        - <strong>STATUS (5s):</strong> Leitura dos danos e recursos.<br>
+        - <strong>DELIBERAÇÃO (25s):</strong> A tripulação (e civis) discute a estratégia.<br>
+        - <strong>INPUT (20s):</strong> Inserção das ações e PINs no terminal.<br>
+        - <strong>RESOLVE (10s):</strong> O sistema processa os comandos e aplica os ticks de dano.</p>
+
+        <p><strong style="color: var(--crt-text);">SISTEMA DE PIN FIXO:</strong><br>
+        A segurança foi atualizada. <strong>Ignore as rodadas 2 a 10 na sua carta.</strong> Utilize apenas o PIN da <strong>R1 (Rodada 1)</strong> como o seu PIN FIXO para todo o jogo. Ele pode ser inserido a qualquer momento antes da fase "Resolve".</p>
+
+        <p><strong style="color: var(--crt-text);">ARQUITETURAS DE DECISÃO (GRUPOS):</strong><br>
+        - <strong style="color: #ffb000;">G1 (Comando Centralizado):</strong> Apenas o Piloto pode inserir ações no terminal. Para executar a ação de outro tripulante, o Piloto deve inserir um PIN Combinado: <em>PIN do Piloto + PIN do Tripulante (PPPP-RRRR)</em>.<br>
+        - <strong style="color: #ff3333;">G2 (Acesso Livre / Caos):</strong> Qualquer membro pode inserir ações. Cuidado: múltiplas ações do mesmo papel ou mudanças de rota na mesma rodada geram conflitos severos e penalidades no motor e combustível.<br>
+        - <strong style="color: #39ff14;">G3 (Domínio Estrito):</strong> Cada especialista só atua na sua área. Não há penalidade por conflito. Se a tripulação for eficiente e atingir a distância, o sucesso (pouso) é garantido.</p>
+
+        <p><strong style="color: var(--crt-text);">A TEMPESTADE:</strong><br>
+        A partir da Rodada 6, a aeronave entra numa tempestade severa. O dano automático a cada rodada aumenta drasticamente, exigindo reparações constantes.</p>
+      </div>
+
       <br><br>
-      <button class="btnVoltar">VOLTAR AO MENU</button>
+      <div style="text-align: center;">
+        <button class="btnVoltar">ENTENDIDO (VOLTAR)</button>
+      </div>
     </div>
   </div>
 
