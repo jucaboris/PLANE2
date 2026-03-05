@@ -7,7 +7,6 @@ let interval = null;
 
 const $ = (id) => document.getElementById(id);
 
-// Novos controles de tela e áudio
 const uiScreens = {
   splash: $("splashScreen"),
   menu: $("menuScreen"),
@@ -27,25 +26,33 @@ const ui = {
   roundEl: $("round"), distEl: $("dist"), targetEl: $("target"), inputsRemainingEl: $("inputsRemaining"),
   fuelEl: $("fuel"), engineEl: $("engine"), healthEl: $("health"),
   fuelBar: $("fuelBar"), engineBar: $("engineBar"), healthBar: $("healthBar"),
-  blip: $("blip"), logEl: $("log"), g1Hint: $("g1Hint"),
+  blip: $("blip"), logEl: $("log"), g1Hint: $("g1Hint")
 };
 
-// Navegação entre telas
 function showScreen(screenId) {
-  Object.values(uiScreens).forEach(el => { if(el && el.tagName === "DIV") el.style.display = "none"; });
+  Object.values(uiScreens).forEach(el => { 
+    if(el && el.tagName === "DIV") el.style.display = "none"; 
+  });
   if($(screenId)) $(screenId).style.display = "flex";
 }
 
-$("splashScreen").addEventListener("click", () => {
-  uiScreens.audio.play().catch(e => console.log("Áudio bloqueado pelo navegador", e));
-  showScreen("menuScreen");
-});
+if (uiScreens.splash) {
+  uiScreens.splash.addEventListener("click", () => {
+    if (uiScreens.audio) {
+      uiScreens.audio.play().catch(e => console.log("Áudio bloqueado", e));
+    }
+    showScreen("menuScreen");
+  });
+}
 
 $("btnIniciar").addEventListener("click", () => showScreen("gameScreen"));
 $("btnPersonagens").addEventListener("click", () => showScreen("charactersScreen"));
 $("btnInstrucoes").addEventListener("click", () => showScreen("instructionsScreen"));
 $("btnSair").addEventListener("click", () => showScreen("splashScreen"));
-document.querySelectorAll(".btnVoltar").forEach(btn => btn.addEventListener("click", () => showScreen("menuScreen")));
+
+document.querySelectorAll(".btnVoltar").forEach(btn => {
+  btn.addEventListener("click", () => showScreen("menuScreen"));
+});
 
 function populateActions(role) {
   const acts = Object.keys(CFG.actions[role] || {});
@@ -55,7 +62,6 @@ function populateActions(role) {
 function setPhase(p) { state.phase = p; ui.phaseEl.textContent = p; }
 function setTimer(v) { ui.timerEl.textContent = String(v); }
 
-// Botões sempre ativos a menos que o jogo esteja calculando o round (RESOLVE) ou acabado (END)
 function enableRouteButtons(on) {
   ui.routeA.disabled = !on; ui.routeB.disabled = !on;
   ui.airportSelect.disabled = !on; ui.skipBtn.disabled = !on; ui.submitBtn.disabled = !on;
