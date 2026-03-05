@@ -36,6 +36,11 @@ function showScreen(screenId) {
   if($(screenId)) $(screenId).style.display = "flex";
 }
 
+function goToGameAndStart() {
+  showScreen("gameScreen");
+  if (!running) startLoop();
+}
+
 if (uiScreens.splash) {
   uiScreens.splash.addEventListener("click", () => {
     if (uiScreens.audio) {
@@ -45,7 +50,7 @@ if (uiScreens.splash) {
   });
 }
 
-$("btnIniciar").addEventListener("click", () => showScreen("gameScreen"));
+$("btnIniciar").addEventListener("click", () => goToGameAndStart());
 $("btnPersonagens").addEventListener("click", () => showScreen("charactersScreen"));
 $("btnInstrucoes").addEventListener("click", () => showScreen("instructionsScreen"));
 $("btnSair").addEventListener("click", () => showScreen("splashScreen"));
