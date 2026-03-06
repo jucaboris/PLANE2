@@ -13,7 +13,10 @@ const uiScreens = {
   game: $("gameScreen"),
   chars: $("charactersScreen"),
   inst: $("instructionsScreen"),
-  audio: $("bgMusic")
+  audio: $("bgMusic"),
+  audioToggle: $("audioToggle"),
+  zoomOverlay: $("zoomOverlay"),
+  zoomedCharacter: $("zoomedCharacter")
 };
 
 const ui = {
@@ -39,6 +42,49 @@ function showScreen(screenId) {
 function goToGameAndStart() {
   showScreen("gameScreen");
   if (!running) startLoop();
+}
+
+function updateAudioToggleUI() {
+  if (!uiScreens.audio || !uiScreens.audioToggle) return;
+  const muted = uiScreens.audio.muted;
+  uiScreens.audioToggle.textContent = muted ? "🔇" : "🔊";
+  uiScreens.audioToggle.title = muted ? "Ativar música" : "Silenciar música";
+  uiScreens.audioToggle.setAttribute("aria-label", uiScreens.audioToggle.title);
+}
+
+function updateModeLock() {
+  if (ui.modeSelect) ui.modeSelect.disabled = running;
+}
+
+function setupCharacterZoom() {
+  if (!uiScreens.zoomOverlay || !uiScreens.zoomedCharacter) return;
+
+  document.querySelectorAll(".char-card img").forEach((img) => {
+    img.addEventListener("dblclick", () => {
+      uiScreens.zoomedCharacter.src = img.src;
+      uiScreens.zoomedCharacter.alt = img.alt || "Imagem ampliada";
+      uiScreens.zoomOverlay.classList.add("active");
+      uiScreens.zoomOverlay.setAttribute("aria-hidden", "false");
+    });
+  });
+
+  uiScreens.zoomOverlay.addEventListener("click", () => {
+    uiScreens.zoomOverlay.classList.remove("active");
+    uiScreens.zoomOverlay.setAttribute("aria-hidden", "true");
+    uiScreens.zoomedCharacter.src = "";
+  });
+}
+
+if (uiScreens.audioToggle) {
+  uiScreens.audioToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!uiScreens.audio) return;
+    uiScreens.audio.muted = !uiScreens.audio.muted;
+    if (!uiScreens.audio.muted && uiScreens.audio.paused) {
+      uiScreens.audio.play().catch(() => {});
+    }
+    updateAudioToggleUI();
+  });
 }
 
 if (uiScreens.splash) {
@@ -98,11 +144,12 @@ function render() {
   enableRouteButtons(state.phase !== "RESOLVE" && state.phase !== "END");
 }
 
-function stopLoop() { running = false; if (interval) { clearInterval(interval); interval = null; } }
+function stopLoop() { running = false; if (interval) { clearInterval(interval); interval = null; } updateModeLock(); }
 
 function startLoop() {
   if (running) return;
   running = true;
+   updateModeLock();
 
   function runPhase(phaseName, seconds, next) {
     setPhase(phaseName); render();
@@ -157,4 +204,7 @@ ui.routeA.addEventListener("click", () => { if (state.phase !== "RESOLVE" && sta
 ui.routeB.addEventListener("click", () => { if (state.phase !== "RESOLVE" && state.phase !== "END") changeAirport(state, "B"); ui.airportSelect.value = "B"; render(); });
 ui.airportSelect.addEventListener("change", () => { if (state.phase !== "RESOLVE" && state.phase !== "END") changeAirport(state, ui.airportSelect.value); render(); });
 
+setupCharacterZoom();
+updateAudioToggleUI();
+updateModeLock();
 populateActions(ui.roleSelect.value); setPhase("STATUS"); setTimer("--"); render();
