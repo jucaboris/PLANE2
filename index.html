@@ -38,7 +38,7 @@
     #splashScreen { cursor: pointer; }
     #splashScreen p { margin-top: auto; margin-bottom: 50px; font-family: var(--pixel-font); font-size: 16px; animation: blink 1.5s infinite; text-shadow: 2px 2px #000; }
 
-    #menuScreen, #charactersScreen, #instructionsScreen { display: none; }
+#menuScreen, #charactersScreen, #instructionsScreen, #storyScreen { display: none; }
     
     .modal-menu {
       background: rgba(0, 17, 0, 0.85); border: 4px inset #555; padding: 30px;
@@ -58,6 +58,13 @@
       width: 80%; max-width: 800px; height: 70%; overflow-y: auto; color: var(--crt-text);
       font-size: 22px;
     }
+
+        .story-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+    .story-block { background: #001600; border: 2px solid #005500; padding: 14px; color: #d9ffd9; }
+    .group-picks { display: grid; gap: 10px; }
+    .group-pick { background: #222; border: 2px solid #666; color: #fff; font-family: var(--pixel-font); font-size: 11px; padding: 12px; text-align: left; }
+    .group-pick.active { border-color: var(--crt-text); box-shadow: 0 0 10px #39ff1488; background: #003800; }
+    .story-guidance { min-height: 180px; margin-top: 10px; }
 
     /* Estilos da Galeria de Personagens */
     .char-container { margin-top: 20px; }
@@ -114,7 +121,7 @@
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center; }
     .stat .k { font-size: 16px; text-transform: uppercase; opacity: 0.8; }
     .stat .v { font-family: var(--pixel-font); font-size: 16px; margin-top: 8px; }
-    .bars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .bars { display: grid; grid-template-columns: 1fr; gap: 10px; }
     .bar .k { display: flex; justify-content: space-between; font-size: 18px; margin-bottom: 4px;}
     .meter { height: 16px; background: #003300; border: 2px solid #39ff14; }
     .fill { height: 100%; background: #39ff14; }
@@ -124,11 +131,34 @@
     .map .label { position: absolute; bottom: 10px; left: 12px; font-size: 16px; z-index: 3; }
     .consoleRow { display: flex; flex-direction: column; gap: 10px; background: #999; padding: 12px; border: 4px inset #fff; }
     .consoleRow .inputs-wrap { display: flex; gap: 10px; }
+        .choice-btn { font-family: var(--text-font); font-size: 22px; background: #0c2b0c; border: 2px solid #39ff14; color: #fff; text-align: left; padding: 8px; }
+    .choice-btn.active { background: #39ff14; color: #000; border-color: #fff; }
+
+    .role-portraits { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+    .portrait-btn { background: #020; border: 2px solid #39ff14; padding: 6px; text-align: center; }
+    .portrait-btn img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border: 2px solid #1e1e1e; margin-bottom: 4px; }
+    .portrait-btn span { font-size: 9px; display: block; color: #fff; }
+    .portrait-btn.active { border-color: #fff; box-shadow: 0 0 8px #39ff14; }
+
+    .timer-highlight { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; background: #000; border: 3px solid #39ff14; padding: 12px; margin-bottom: 12px; }
+    .timer-highlight .phase-txt { color: #9dfc8f; font-family: var(--pixel-font); font-size: 11px; }
+    .timer-highlight .time { font-family: var(--pixel-font); font-size: 40px; color: #fff; text-shadow: 0 0 10px #ff3333; }
+    .group-badge { font-family: var(--pixel-font); font-size: 11px; background: #111; color: #ffe082; border: 2px solid #ffe082; padding: 10px; }
     .log { height: 280px; overflow-y: auto; font-size: 20px; line-height: 1.2; text-shadow: 0 0 5px var(--crt-text); }
     .log div { padding: 4px 0; border-bottom: 1px dashed #003300; }
     .ok { color: var(--crt-text); } .warn { color: var(--crt-warn); text-shadow: 0 0 5px var(--crt-warn); } .bad { color: var(--crt-bad); text-shadow: 0 0 5px var(--crt-bad); }
     .hint { margin-top: 12px; padding: 10px; background: #000; color: #ccc; border: 2px solid #555; font-size: 16px; }
-    @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } .consoleRow .inputs-wrap { flex-direction: column; } }
+    .distance-row { margin-bottom: 10px; position: relative; z-index: 3; }
+    .distance-row .distance-head { display: flex; justify-content: space-between; font-size: 18px; }
+    .distance-track { margin-top: 4px; height: 14px; background: #032203; border: 1px solid #39ff14; position: relative; }
+    .distance-progress { height: 100%; background: linear-gradient(90deg, #39ff14, #9cff9c); }
+    .distance-plane { position: absolute; top: -7px; width: 20px; text-align: center; font-size: 12px; }
+    .round-popup { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.72); z-index: 1500; }
+    .round-popup.active { display: flex; }
+    .round-popup-card { width: min(680px, 90vw); background: #001a00; border: 4px solid #39ff14; padding: 18px; color: #fff; }
+    .round-popup-card h3 { margin-top: 0; font-family: var(--pixel-font); color: #39ff14; font-size: 14px; }
+    .round-popup-card ul { margin: 10px 0; padding-left: 20px; font-size: 22px; }
+    @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } .consoleRow .inputs-wrap { flex-direction: column; } .story-layout { grid-template-columns: 1fr; } .role-portraits { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   </style>
 </head>
 <body>
@@ -147,6 +177,29 @@
       <button id="btnPersonagens">PERSONAGENS</button>
       <button id="btnInstrucoes">INSTRUÇÕES</button>
       <button id="btnSair">SAIR</button>
+    </div>
+  </div>
+
+    <div id="storyScreen" class="screen">
+    <div class="content-screen" style="width: 90%; max-width: 1100px;">
+      <h2 style="font-family: var(--pixel-font); color: var(--crt-text);">BRIEFING DA MISSÃO</h2>
+      <div class="story-layout">
+        <div class="story-block">
+          <p><strong>Contexto:</strong> uma falha crítica forçou desvio em meio à tempestade. O tempo está acabando e o cockpit precisa decidir rápido para pousar no aeroporto A ou B.</p>
+          <p>Seu grupo define <strong>quem tem poder para decidir</strong>. Isso muda totalmente a estratégia da rodada.</p>
+          <p style="color:#ffb000;">Escolha o seu grupo ao lado para liberar as orientações específicas.</p>
+          <button id="storyStartBtn" disabled>ENTRAR NO COCKPIT</button>
+          <button class="btnVoltar" style="background-color: #555; margin-left: 8px;">VOLTAR</button>
+        </div>
+        <div class="story-block">
+          <div class="group-picks">
+            <button class="group-pick" data-mode="G1">G1 · COMANDO CENTRALIZADO</button>
+            <button class="group-pick" data-mode="G2">G2 · ACESSO LIVRE (CAOS)</button>
+            <button class="group-pick" data-mode="G3">G3 · DOMÍNIO ESTRITO</button>
+          </div>
+          <div id="storyGuidance" class="story-guidance">Selecione um grupo para ver as orientações de jogo.</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -212,19 +265,8 @@
   <div id="gameScreen" class="screen">
     <div class="wrap">
       <div class="topbar">
-        <div class="brand">
-          <h1>Decisão: Cockpit</h1>
-          <div class="sub">Central de Comando A.I.R.</div>
-        </div>
+       <div class="group-badge">GRUPO: <span id="modeBadge">G3</span></div>
         <div class="controls">
-          <label style="display:flex;gap:8px;align-items:center;">
-            <span style="font-weight:bold;">MODO</span>
-            <select id="modeSelect">
-              <option value="G1">G1 - Central</option>
-              <option value="G2">G2 - Caos</option>
-              <option value="G3" selected>G3 - Direitos</option>
-            </select>
-          </label>
           <label style="display:flex;gap:8px;align-items:center;">
             <span style="font-weight:bold;">ALVO</span>
             <select id="airportSelect">
@@ -240,23 +282,32 @@
         <div class="card">
           <div class="hd">
             <div class="ttl">SISTEMAS DE VOO</div>
-            <div class="pill"><span id="phase">STATUS</span> | <span id="timer">--</span>S</div>
+            <div class="pill">RODADA <span id="round">1</span></div>
           </div>
           <div class="body">
+                        <div class="timer-highlight">
+              <div class="phase-txt">FASE: <span id="phase">STATUS</span></div>
+              <div class="time"><span id="timer">--</span></div>
+            </div>
             <div class="stats">
-              <div class="stat"><div class="k">Rodada</div><div class="v" id="round">1</div></div>
               <div class="stat"><div class="k">Dist</div><div class="v" id="dist">0</div></div>
               <div class="stat"><div class="k">Alvo</div><div class="v" id="target">A</div></div>
               <div class="stat"><div class="k">Inputs</div><div class="v" id="inputsRemaining">∞</div></div>
             </div>
             <div class="bars">
-              <div class="bar"><div class="k"><span>FUEL</span><span id="fuel">18</span></div><div class="meter"><div class="fill" id="fuelBar"></div></div></div>
-              <div class="bar"><div class="k"><span>ENG</span><span id="engine">10</span></div><div class="meter"><div class="fill" id="engineBar"></div></div></div>
-              <div class="bar"><div class="k"><span>HLT</span><span id="health">10</span></div><div class="meter"><div class="fill" id="healthBar"></div></div></div>
-            </div>
+              <div class="bar"><div class="k"><span>COMBUSTÍVEL</span><span id="fuel">18</span></div><div class="meter"><div class="fill" id="fuelBar"></div></div></div>
+              <div class="bar"><div class="k"><span>MOTOR</span><span id="engine">10</span></div><div class="meter"><div class="fill" id="engineBar"></div></div></div>
+              <div class="bar"><div class="k"><span>SAÚDE</span><span id="health">10</span></div><div class="meter"><div class="fill" id="healthBar"></div></div></div>            </div>
             <div class="map">
-              <div class="blip" id="blip" style="left:18px;top:72px;"></div>
-              <div class="label">RADAR DE APROXIMAÇÃO</div>
+              <div class="distance-row">
+                <div class="distance-head"><span>Aeroporto A</span><span>Restante: <b id="distToA">8</b></span></div>
+                <div class="distance-track"><div class="distance-progress" id="progressA"></div><div class="distance-plane" id="planeA">✈</div></div>
+              </div>
+              <div class="distance-row">
+                <div class="distance-head"><span>Aeroporto B</span><span>Restante: <b id="distToB">14</b></span></div>
+                <div class="distance-track"><div class="distance-progress" id="progressB"></div><div class="distance-plane" id="planeB">✈</div></div>
+              </div>
+              <div class="label">MAPA DE DISTÂNCIAS ATUALIZADO POR RODADA</div>
             </div>
             <div class="hint" id="g1Hint"></div>
           </div>
@@ -267,6 +318,12 @@
             <div class="pill">LOG</div>
           </div>
           <div class="body">
+                        <div class="role-portraits" id="rolePortraits">
+              <button class="portrait-btn" data-role="pilot"><img src="terminal-pilot.png" alt="Piloto" /><span>PILOTO</span></button>
+              <button class="portrait-btn" data-role="engineer"><img src="terminal-engineer.png" alt="Engenheiro" /><span>ENGENHEIRO</span></button>
+              <button class="portrait-btn" data-role="cabin"><img src="terminal-cabin.png" alt="Cabine" /><span>CABINE</span></button>
+              <button class="portrait-btn" data-role="copilot"><img src="terminal-copilot.png" alt="Copiloto" /><span>COPILOTO</span></button>
+            </div>
             <div class="consoleRow">
               <div class="inputs-wrap">
                 <select id="roleSelect" style="flex:1;">
@@ -296,6 +353,14 @@
   
   <div id="zoomOverlay" class="zoom-overlay" aria-hidden="true">
     <img id="zoomedCharacter" src="" alt="Imagem ampliada" />
+  </div>
+
+    <div id="roundPopup" class="round-popup">
+    <div class="round-popup-card">
+      <h3 id="roundPopupTitle">RESUMO DA RODADA</h3>
+      <ul id="roundPopupList"></ul>
+      <button id="roundPopupBtn">CONTINUAR</button>
+    </div>
   </div>
 
   <script type="module" src="./ui.js"></script>
