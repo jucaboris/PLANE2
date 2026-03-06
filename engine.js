@@ -256,3 +256,5 @@ export function endRound(state) {
 export function formatLogForUI(item) {
   const cls = item.kind === "ok" ? "ok" : item.kind === "warn" ? "warn" : item.kind === "bad" ? "bad" : "";
   return { cls, text: item.text };
+
+}
