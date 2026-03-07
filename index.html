@@ -95,6 +95,14 @@
       image-rendering: auto;
     }
 
+      #actionButtons button.active {
+      background-color: var(--crt-text);
+      color: #000;
+      border-color: #9cff9c;
+      border-bottom-color: #006400;
+      border-right-color: #006400;
+    }
+
     /* Jogo Original */
     #gameScreen { 
       display: none; height: 100%; overflow-y: auto; align-items: flex-start;
@@ -267,13 +275,6 @@
       <div class="topbar">
        <div class="group-badge">GRUPO: <span id="modeBadge">G3</span></div>
         <div class="controls">
-          <label style="display:flex;gap:8px;align-items:center;">
-            <span style="font-weight:bold;">ALVO</span>
-            <select id="airportSelect">
-              <option value="A" selected>A</option>
-              <option value="B">B</option>
-            </select>
-          </label>
           <button id="startBtn">INICIAR</button>
           <button id="resetBtn" style="background-color: #555; border-color: #888; border-bottom-color: #222; border-right-color: #222;">RESET</button>
         </div>
@@ -325,14 +326,9 @@
               <button class="portrait-btn" data-role="copilot"><img src="terminal-copilot.png" alt="Copiloto" /><span>COPILOTO</span></button>
             </div>
             <div class="consoleRow">
-              <div class="inputs-wrap">
-                <select id="roleSelect" style="flex:1;">
-                  <option value="pilot">Piloto</option>
-                  <option value="engineer">Engenheiro</option>
-                  <option value="cabin">Cabine</option>
-                  <option value="copilot">Copiloto</option>
-                </select>
-                <select id="actionSelect" style="flex:1;"></select>
+               <div class="inputs-wrap" id="actionButtons" style="width:100%;">
+                <button id="actionBtn1" style="flex:1;">AÇÃO 1</button>
+                <button id="actionBtn2" style="flex:1;">AÇÃO 2</button>
               </div>
               <div class="inputs-wrap">
                 <input id="pinInput" placeholder="INSERIR PIN..." maxlength="9" style="flex:2;" />
