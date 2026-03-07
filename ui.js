@@ -173,7 +173,9 @@ function render() {
   ui.fuelEl.textContent = state.resources.fuel;
   ui.engineEl.textContent = state.resources.engine;
   ui.healthEl.textContent = state.resources.health;
-  ui.stormStateEl.textContent = state.storm.active ? "Tempestade" : "Normal";
+    if (ui.stormStateEl) {
+    ui.stormStateEl.textContent = state.storm.active ? "Tempestade" : "Normal";
+  }
   
   const max = state.current.maxInputs;
 ui.inputsRemainingEl.textContent = max === Infinity ? "∞" : String(Math.max(0, max - state.stats.inputsAcceptedThisRound));
