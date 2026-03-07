@@ -25,6 +25,7 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       background-position: center; z-index: 10;
     }
+    #bootScreen,
     #splashScreen,
     #menuScreen,
     #charactersScreen,
@@ -35,10 +36,59 @@
       background-repeat: no-repeat;
     }
 
+        #bootScreen {
+      gap: 24px;
+      text-align: center;
+    }
+    .boot-box {
+      width: min(680px, 90vw);
+      background: rgba(0, 17, 0, 0.92);
+      border: 4px inset #555;
+      padding: 26px;
+      color: var(--crt-text);
+    }
+    .boot-box h2 {
+      margin: 0 0 16px;
+      font-family: var(--pixel-font);
+      font-size: 18px;
+      color: #fff;
+    }
+    .boot-box p {
+      margin: 8px 0 20px;
+      font-size: 28px;
+    }
+    #loadingStatus {
+      font-size: 22px;
+      color: #9cff9c;
+      margin-bottom: 14px;
+    }
+    #startExperienceBtn {
+      min-width: 260px;
+      font-size: 14px;
+      padding: 16px;
+    }
+    #startExperienceBtn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      filter: grayscale(0.4);
+    }
+
+    #introScreen {
+      display: none;
+      background: #000;
+      z-index: 20;
+    }
+    #introVideo {
+      width: min(96vw, 1100px);
+      max-height: 92vh;
+      border: 2px solid #222;
+      background: #000;
+    }
+
     #splashScreen { cursor: pointer; }
     #splashScreen p { margin-top: auto; margin-bottom: 50px; font-family: var(--pixel-font); font-size: 16px; animation: blink 1.5s infinite; text-shadow: 2px 2px #000; }
 
-#menuScreen, #charactersScreen, #instructionsScreen, #storyScreen { display: none; }
+#splashScreen, #menuScreen, #charactersScreen, #instructionsScreen, #storyScreen { display: none; }
     
     .modal-menu {
       background: rgba(0, 17, 0, 0.85); border: 4px inset #555; padding: 30px;
@@ -174,6 +224,20 @@
   <audio id="bgMusic" loop src="trilha.mp3"></audio>
   <button id="audioToggle" class="audio-toggle" aria-label="Silenciar música" title="Silenciar música">🔊</button>
   
+  <div id="bootScreen" class="screen">
+    <div class="boot-box">
+      <h2>SKY AUTHORITY · BOOT SEQUENCE</h2>
+      <p id="loadingStatus">Carregando conteúdo da experiência...</p>
+      <button id="startExperienceBtn" disabled>PREPARANDO EXPERIÊNCIA...</button>
+    </div>
+  </div>
+
+  <div id="introScreen" class="screen">
+    <video id="introVideo" preload="auto" playsinline>
+      <source src="intro.mp4" type="video/mp4" />
+      Seu navegador não suporta vídeo HTML5.
+    </video>
+  </div>
   <div id="splashScreen" class="screen">
     <p>CLIQUE NA TELA PARA INICIAR</p>
   </div>
