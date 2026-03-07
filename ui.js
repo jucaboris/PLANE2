@@ -206,20 +206,19 @@ function showRoundPopup(beforeRound) {
 }
 
 function render() {
- ui.modeBadge.textContent = state.mode;
+  ui.modeBadge.textContent = state.mode;
   ui.roundEl.textContent = state.round;
   ui.distEl.textContent = state.resources.dist;
   ui.targetEl.textContent = state.airportTarget;
   ui.fuelEl.textContent = state.resources.fuel;
   ui.engineEl.textContent = state.resources.engine;
   ui.healthEl.textContent = state.resources.health;
-    if (ui.stormStateEl) {
   if (ui.stormStateEl) {
     ui.stormStateEl.textContent = state.storm.active ? "Tempestade" : "Normal";
   }
   
   const max = state.current.maxInputs;
-ui.inputsRemainingEl.textContent = max === Infinity ? "∞" : String(Math.max(0, max - state.stats.inputsAcceptedThisRound));
+  ui.inputsRemainingEl.textContent = max === Infinity ? "∞" : String(Math.max(0, max - state.stats.inputsAcceptedThisRound));
   
   const fPct = Math.max(0, Math.min(100, (state.resources.fuel / CFG.resources.initial.fuel) * 100));
   const ePct = Math.max(0, Math.min(100, (state.resources.engine / CFG.resources.initial.engine) * 100));
@@ -236,6 +235,13 @@ ui.inputsRemainingEl.textContent = max === Infinity ? "∞" : String(Math.max(0,
   updatePortraitSelection();
   updateActionButtons();
   enableRouteButtons(state.phase !== "RESOLVE" && state.phase !== "END");
+}
+
+function enterMenuFromSplash() {
+  if (uiScreens.audio) {
+    uiScreens.audio.play().catch((e) => console.log("Áudio bloqueado", e));
+  }
+  showScreen("menuScreen");
 }
 
 function stopLoop() {
@@ -329,11 +335,11 @@ if (uiScreens.audioToggle) {
 }
 
 if (uiScreens.splash) {
-  uiScreens.splash.addEventListener("click", () => {
-    if (uiScreens.audio) {
-      uiScreens.audio.play().catch((e) => console.log("Áudio bloqueado", e));
-    }
-    showScreen("menuScreen");
+  uiScreens.splash.tabIndex = 0;
+  uiScreens.splash.addEventListener("click", enterMenuFromSplash);
+  uiScreens.splash.addEventListener("touchend", enterMenuFromSplash);
+  uiScreens.splash.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") enterMenuFromSplash();
   });
 }
 
