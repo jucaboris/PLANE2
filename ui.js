@@ -5,6 +5,8 @@ let state = makeInitialState();
 let running = false;
 let interval = null;
 let pendingNextRound = null;
+let selectedRole = "pilot";
+let selectedAction = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -33,8 +35,8 @@ const ui = {
   resetBtn: $("resetBtn"),
   phaseEl: $("phase"),
   timerEl: $("timer"),
-  roleSelect: $("roleSelect"),
-  actionSelect: $("actionSelect"),
+  actionBtn1: $("actionBtn1"),
+  actionBtn2: $("actionBtn2"),
   pinInput: $("pinInput"),
   submitBtn: $("submitBtn"),
   skipBtn: $("skipBtn"),
@@ -100,9 +102,46 @@ function setupCharacterZoom() {
     uiScreens.zoomedCharacter.src = "";
   });
 }
+
+function labelForAction(actionId) {
+  const labels = {
+    normal: "Voo normal",
+    fast: "Voo rápido",
+    repair: "Reparar motor",
+    protect: "Proteger motor",
+    stabilize: "Estabilizar cabine",
+    none: "Sem ação",
+    declareEmergency: "Declarar emergência"
+  };
+  return labels[actionId] || actionId;
+}
+
 function populateActions(role) {
   const acts = Object.keys(CFG.actions[role] || {});
-  ui.actionSelect.innerHTML = acts.map((a) => `<option value="${a}">${a}</option>`).join("");
+    selectedAction = acts[0] || null;
+
+  [ui.actionBtn1, ui.actionBtn2].forEach((btn, idx) => {
+    if (!btn) return;
+    const actionId = acts[idx];
+    if (!actionId) {
+      btn.style.display = "none";
+      btn.dataset.actionId = "";
+      btn.textContent = "";
+      return;
+    }
+    btn.style.display = "inline-block";
+    btn.dataset.actionId = actionId;
+    btn.textContent = labelForAction(actionId).toUpperCase();
+  });
+
+  updateActionButtons();
+}
+
+function updateActionButtons() {
+  [ui.actionBtn1, ui.actionBtn2].forEach((btn) => {
+    if (!btn || !btn.dataset.actionId) return;
+    btn.classList.toggle("active", btn.dataset.actionId === selectedAction);
+  });
 }
 
 function setPhase(p) {
@@ -129,24 +168,25 @@ function updateActionHintsByMode() {
 function updatePortraitSelection() {
   if (!ui.rolePortraits) return;
   ui.rolePortraits.querySelectorAll("[data-role]").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.role === ui.roleSelect.value);
+    btn.classList.toggle("active", btn.dataset.role === selectedRole);
   });
 }
 
 function renderDistanceMap() {
   const aReq = CFG.airports.A.dist;
   const bReq = CFG.airports.B.dist;
-  const dist = state.resources.dist;
+  const aDist = state.routeProgress?.A ?? Math.min(state.resources.dist, aReq);
+  const bDist = state.routeProgress?.B ?? Math.min(state.resources.dist, bReq);
 
-  const aProg = Math.max(0, Math.min(100, (dist / aReq) * 100));
-  const bProg = Math.max(0, Math.min(100, (dist / bReq) * 100));
+  const aProg = Math.max(0, Math.min(100, (aDist / aReq) * 100));
+  const bProg = Math.max(0, Math.min(100, (bDist / bReq) * 100));
 
   ui.progressA.style.width = `${aProg}%`;
   ui.progressB.style.width = `${bProg}%`;
   ui.planeA.style.left = `calc(${aProg}% - 10px)`;
   ui.planeB.style.left = `calc(${bProg}% - 10px)`;
-  ui.distToA.textContent = String(Math.max(0, aReq - dist));
-  ui.distToB.textContent = String(Math.max(0, bReq - dist));
+  ui.distToA.textContent = String(Math.max(0, aReq - aDist));
+  ui.distToB.textContent = String(Math.max(0, bReq - bDist));
 }
 
 function showRoundPopup(beforeRound) {
@@ -174,6 +214,7 @@ function render() {
   ui.engineEl.textContent = state.resources.engine;
   ui.healthEl.textContent = state.resources.health;
     if (ui.stormStateEl) {
+  if (ui.stormStateEl) {
     ui.stormStateEl.textContent = state.storm.active ? "Tempestade" : "Normal";
   }
   
@@ -193,12 +234,12 @@ ui.inputsRemainingEl.textContent = max === Infinity ? "∞" : String(Math.max(0,
   ui.logEl.innerHTML = items.map((x) => `<div class="${x.cls}">${x.text}</div>`).join("");
   updateActionHintsByMode();
   updatePortraitSelection();
+  updateActionButtons();
   enableRouteButtons(state.phase !== "RESOLVE" && state.phase !== "END");
 }
 
 function stopLoop() {
   running = false;
-  pendingNextRound = null;
   if (interval) {
     clearInterval(interval);
     interval = null;
@@ -251,7 +292,11 @@ function startLoop() {
               return;
             }
 
-            pendingNextRound = beginRound;
+            setTimeout(() => {
+              ui.roundPopup.classList.remove("active");
+            }, 2200);
+
+            beginRound();
           });
         });
       });
@@ -308,8 +353,8 @@ document.querySelectorAll(".group-pick").forEach((btn) => {
 if (ui.rolePortraits) {
   ui.rolePortraits.querySelectorAll("[data-role]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      ui.roleSelect.value = btn.dataset.role;
-      populateActions(ui.roleSelect.value);
+      selectedRole = btn.dataset.role;
+      populateActions(selectedRole);
       render();
     });
   });
@@ -321,13 +366,7 @@ ui.storyStartBtn.addEventListener("click", () => {
 });
 
 ui.roundPopupBtn.addEventListener("click", () => {
-  ui.roundPopup.classList.remove("active");
-  if (state.gameOver) return;
-  if (typeof pendingNextRound === "function") {
-    const next = pendingNextRound;
-    pendingNextRound = null;
-    next();
-  }
+  ui.roundPopup.classList.remove("active")
 });
 
 ui.startBtn.addEventListener("click", () => startLoop());
@@ -336,30 +375,35 @@ ui.resetBtn.addEventListener("click", () => {
   state = makeInitialState();
   setPhase("STATUS");
   setTimer("--");
-  populateActions(ui.roleSelect.value);
+  selectedRole = "pilot";
+  populateActions(selectedRole);
   pickStoryMode(state.mode);
   render();
 });
 
-ui.roleSelect.addEventListener("change", () => {
-  populateActions(ui.roleSelect.value);
-  render();
-});
-
 ui.submitBtn.addEventListener("click", () => {
-  if (state.phase === "RESOLVE" || state.phase === "END") return;
-  submitInput(state, { role: ui.roleSelect.value, actionId: ui.actionSelect.value, pin: ui.pinInput.value.trim(), meta: null });
+    if (state.phase === "RESOLVE" || state.phase === "END" || !selectedAction) return;
+  submitInput(state, { role: selectedRole, actionId: selectedAction, pin: ui.pinInput.value.trim(), meta: null });
   ui.pinInput.value = "";
   render();
 });
 
 ui.skipBtn.addEventListener("click", () => {
   if (state.phase === "RESOLVE" || state.phase === "END") return;
-  const role = ui.roleSelect.value;
+ const role = selectedRole;
   const actionId = role === "cabin" ? "none" : role === "copilot" ? "none" : role === "pilot" ? "normal" : "protect";
   submitInput(state, { role, actionId, pin: ui.pinInput.value.trim(), meta: null });
   ui.pinInput.value = "";
   render();
+});
+  
+[ui.actionBtn1, ui.actionBtn2].forEach((btn) => {
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    if (!btn.dataset.actionId) return;
+    selectedAction = btn.dataset.actionId;
+    render();
+  });
 });
 
 ui.routeA.addEventListener("click", () => {
@@ -373,7 +417,7 @@ ui.routeB.addEventListener("click", () => {
 });
 setupCharacterZoom();
 updateAudioToggleUI();
-populateActions(ui.roleSelect.value);
+populateActions(selectedRole);
 setPhase("STATUS");
 setTimer("--");
 pickStoryMode(state.mode);
