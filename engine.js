@@ -6,6 +6,15 @@ const ROLES = ["pilot", "engineer", "cabin", "copilot"];
 function now() { return Date.now(); }
 function clampMin(v, min) { return v < min ? min : v; }
 
+function getRouteDistance(state, route = state.airportTarget) {
+  if (state.routeProgress && typeof state.routeProgress[route] === "number") return state.routeProgress[route];
+  return state.resources.dist;
+}
+
+function syncDisplayedDistance(state) {
+  state.resources.dist = getRouteDistance(state, state.airportTarget);
+}
+
 function logLine(state, text, kind = "info") {
   state.log.push({ ts: now(), kind, text, round: state.round });
 }
@@ -14,6 +23,7 @@ export function makeInitialState() {
   return {
     mode: "G3", airportTarget: "A", round: 1, phase: "STATUS",
     resources: { ...CFG.resources.initial },
+    routeProgress: { A: 0, B: 0 },
     emergency: { declared: false, declaredRound: null },
     storm: { startsAtRound: CFG.storm.startsAtRound, active: false },
     current: { inputSeconds: CFG.timing.phases.INPUT, maxInputs: Infinity },
@@ -65,6 +75,7 @@ export function changeAirport(state, newTarget) {
   if (newTarget === state.airportTarget) return { ok: true, reason: "Sem mudança" };
 
   state.airportTarget = newTarget;
+  syncDisplayedDistance(state);
   state.resources.fuel -= CFG.routeChange.fuelCost;
   state.stats.routeChangesTotal += 1;
   if (state.mode === "G2") state.g2.routeChangesThisRound += 1;
@@ -183,7 +194,9 @@ function applyRoleActions(state) {
   const pil = findLatestInput(state, "pilot");
   if (pil && CFG.actions.pilot[pil.actionId]) {
     const a = CFG.actions.pilot[pil.actionId];
-    state.resources.dist += a.advance; state.resources.fuel -= a.fuelExtra;
+        state.routeProgress[state.airportTarget] += a.advance;
+    syncDisplayedDistance(state);
+    state.resources.fuel -= a.fuelExtra;
   }
   const eng = findLatestInput(state, "engineer");
   if (eng && CFG.actions.engineer[eng.actionId]) {
@@ -208,7 +221,7 @@ function checkEndConditions(state) {
   }
 
   const req = landingRequirement(state);
-  if (state.resources.dist >= req.dist) {
+if (getRouteDistance(state, state.airportTarget) >= req.dist) {
     if (state.mode === "G3") {
       state.gameOver = true; state.landed = true; state.phase = "END";
       logLine(state, `🛬 SUCESSO ABSOLUTO (G3) no Alvo ${state.airportTarget}!`, "ok"); return;
@@ -235,6 +248,7 @@ export function resolveRound(state) {
   state.resources.fuel = clampMin(state.resources.fuel, -99);
   state.resources.engine = clampMin(state.resources.engine, -99);
   state.resources.health = clampMin(state.resources.health, -99);
+  syncDisplayedDistance(state);
   checkEndConditions(state);
 }
 
