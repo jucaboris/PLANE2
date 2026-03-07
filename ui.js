@@ -17,12 +17,15 @@ const storyTexts = {
 };
 
 const uiScreens = {
+  boot: $("bootScreen"),
+  intro: $("introScreen"),
   splash: $("splashScreen"),
   menu: $("menuScreen"),
   story: $("storyScreen"),
   game: $("gameScreen"),
   chars: $("charactersScreen"),
   inst: $("instructionsScreen"),
+  introVideo: $("introVideo"),
   audio: $("bgMusic"),
   audioToggle: $("audioToggle"),
   zoomOverlay: $("zoomOverlay"),
@@ -30,6 +33,8 @@ const uiScreens = {
 };
 
 const ui = {
+  loadingStatus: $("loadingStatus"),
+  startExperienceBtn: $("startExperienceBtn"),
   modeBadge: $("modeBadge"),
   startBtn: $("startBtn"),
   resetBtn: $("resetBtn"),
@@ -69,6 +74,8 @@ const ui = {
   roundPopupBtn: $("roundPopupBtn"),
   rolePortraits: $("rolePortraits")
 };
+
+let isExperienceReady = false;
 
 function showScreen(screenId) {
   Object.values(uiScreens).forEach((el) => {
@@ -238,10 +245,71 @@ function render() {
 }
 
 function enterMenuFromSplash() {
-  if (uiScreens.audio) {
-    uiScreens.audio.play().catch((e) => console.log("Áudio bloqueado", e));
+    showScreen("menuScreen");
+}
+
+function markExperienceReady() {
+  isExperienceReady = true;
+  if (ui.loadingStatus) ui.loadingStatus.textContent = "Conteúdo carregado. Pronto para iniciar.";
+  if (ui.startExperienceBtn) {
+    ui.startExperienceBtn.disabled = false;
+    ui.startExperienceBtn.textContent = "START EXPERIENCE";
   }
-  showScreen("menuScreen");
+}
+
+function waitForVideoReady(videoEl) {
+  if (!videoEl) return Promise.resolve();
+  if (videoEl.readyState >= 3) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const done = () => {
+      videoEl.removeEventListener("canplaythrough", done);
+      videoEl.removeEventListener("loadeddata", done);
+      videoEl.removeEventListener("error", done);
+      resolve();
+    };
+    videoEl.addEventListener("canplaythrough", done, { once: true });
+    videoEl.addEventListener("loadeddata", done, { once: true });
+    videoEl.addEventListener("error", done, { once: true });
+  });
+}
+
+async function prepareExperienceFlow() {
+  const waitWindowLoad = document.readyState === "complete"
+    ? Promise.resolve()
+    : new Promise((resolve) => window.addEventListener("load", resolve, { once: true }));
+
+  await Promise.all([
+    waitWindowLoad,
+    waitForVideoReady(uiScreens.introVideo),
+    new Promise((resolve) => setTimeout(resolve, 1200))
+  ]);
+
+  markExperienceReady();
+}
+
+function startIntroExperience() {
+  if (!isExperienceReady) return;
+  showScreen("introScreen");
+  if (!uiScreens.introVideo) {
+    showScreen("splashScreen");
+    return;
+  }
+
+  uiScreens.introVideo.currentTime = 0;
+  const playPromise = uiScreens.introVideo.play();
+  if (playPromise?.catch) {
+    playPromise.catch(() => {
+      showScreen("splashScreen");
+    });
+  }
+}
+
+function finishIntroExperience() {
+  if (uiScreens.audio) {
+    uiScreens.audio.play().catch(() => {});
+  }
+  showScreen("splashScreen");
 }
 
 function stopLoop() {
@@ -343,6 +411,14 @@ if (uiScreens.splash) {
   });
 }
 
+if (uiScreens.introVideo) {
+  uiScreens.introVideo.addEventListener("ended", finishIntroExperience);
+}
+
+if (ui.startExperienceBtn) {
+  ui.startExperienceBtn.addEventListener("click", startIntroExperience);
+}
+
 $("btnIniciar").addEventListener("click", () => showScreen("storyScreen"));
 $("btnPersonagens").addEventListener("click", () => showScreen("charactersScreen"));
 $("btnInstrucoes").addEventListener("click", () => showScreen("instructionsScreen"));
@@ -428,3 +504,4 @@ setPhase("STATUS");
 setTimer("--");
 pickStoryMode(state.mode);
 render();
+prepareExperienceFlow();
