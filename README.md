@@ -1,28 +1,26 @@
-# Decision Rights Simulator (GitHub Pages)
+# Sky Authority v3
 
-Jogo estático (HTML/CSS/JS) para simular **arquiteturas de direitos de decisão** (MBM/PBM) usando um modelo híbrido:
+Dinâmica multiplayer em tempo real (Firebase RTDB) com **Mestre** no telão e **múltiplos celulares por perfil**.
 
-- **Tela = Central de Comando** (inputs, timer, log, métricas)
-- **Cards impressos = conhecimento exclusivo + PINs por rodada**
+## URLs
+- Mestre: `index.html?master=true`
+- Comando: `index.html?role=pilot`
+- Negociador: `index.html?role=engineer`
+- Cabine: `index.html?role=cabin`
+- Esquadrão Antibomba: `index.html?role=copilot`
 
-## Rodar local
-Abra `index.html` no navegador (recomendado usar Live Server no VSCode para ESModules).
+## Regras implementadas
+- Rodadas de **2 minutos**.
+- Votação ao vivo por responsabilidade: Comando, Negociador, Cabine, Esquadrão Antibomba.
+- Mestre vê percentual/votos em tempo real por ação e executa responsabilidade por responsabilidade.
+- Falha imediata se Mestre executar ação incorreta em qualquer responsabilidade.
+- G1: apenas Comando vota/executa por todas as responsabilidades (demais bloqueados com popup).
+- G2: todos votam em todas as responsabilidades (punição por conflito quando há voto em ações opostas da mesma responsabilidade).
+- G3: cada perfil vota apenas na própria responsabilidade.
+- Ao fim do tempo de votação, clientes recebem popup "ações em progresso" até o Mestre concluir.
 
-## Publicar no GitHub Pages
-- Coloque os arquivos na raiz do repositório
-- Settings → Pages → Deploy from branch → main → /(root)
-
-## Modos
-- **G1**: apenas piloto digita e usa **PIN combinado** `PPPP-RRRR` (piloto + responsável). Limite 2 autorizações por rodada.
-- **G2**: qualquer papel digita seu PIN; conflito é detectado e penaliza.
-- **G3**: cada papel só decide no seu domínio; sem penalidade estrutural.
-
-## Tempestade (para 10 rodadas)
-Config padrão inicia na **rodada 6** e limita inputs para 2.
-
-## Arquivos
-- `index.html` — UI (central)
-- `config.js` — parâmetros do jogo
-- `pins.js` — tabela de PINs
-- `engine.js` — regras do jogo / validação / resolução
-- `ui.js` — fase/timer, handlers e render  
+## Decisões corretas
+- Comando: **Prisão pela retaguarda**.
+- Negociador: **Negociação emocional**.
+- Cabine: **Manter passageiros calmos**.
+- Esquadrão Antibomba: **Cortar fio vermelho**.
