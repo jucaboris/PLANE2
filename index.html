@@ -324,7 +324,7 @@
       <h2 style="font-family: var(--pixel-font); color: var(--crt-text); border-bottom: 2px dashed #003300; padding-bottom: 10px;">MANUAL DE VOO: SKY AUTHORITY</h2>
       <div style="font-family: var(--text-font); font-size: 20px; line-height: 1.4; color: white;">
         <p><strong style="color: var(--crt-text);">OBJETIVO:</strong><br>A sua tripulação deve gerir os sistemas da aeronave para alcançar a distância necessária e pousar em segurança no Aeroporto A (Distância 8) ou B (Distância 14). Se o Combustível (FUEL), Motor (ENG) ou Saúde (HLT) chegarem a zero, o avião cai.</p>
-        <p><strong style="color: var(--crt-text);">TEMPO DAS RODADAS (60 Segundos):</strong><br>O tempo é implacável. Cada rodada é dividida em 4 fases automáticas:<br>- <strong>STATUS (5s):</strong> Leitura dos danos e recursos.<br>- <strong>DELIBERAÇÃO (25s):</strong> A tripulação (e civis) discute a estratégia.<br>- <strong>INPUT (20s):</strong> Inserção das ações e PINs no terminal.<br>- <strong>RESOLVE (10s):</strong> O sistema processa os comandos e aplica os ticks de dano.</p>
+        <p><strong style="color: var(--crt-text);">TEMPO DAS RODADAS (60 Segundos):</strong><br>O tempo é implacável. Cada rodada é dividida em 4 fases automáticas:<br>- <strong>STATUS (5s):</strong> Leitura dos danos e recursos.<br>- <strong>DELIBERAÇÃO (25s):</strong> A tripulação (e civis) discute a estratégia.<br>- <strong>INPUT (20s):</strong> Inserção das ações no terminal.<br>- <strong>RESOLVE (10s):</strong> O sistema processa os comandos e aplica os ticks de dano.</p>
         <p><strong style="color: var(--crt-text);">ARQUITETURAS DE DECISÃO (GRUPOS):</strong><br>- <strong style="color: #ffb000;">G1 (Comando Centralizado):</strong> Apenas o Piloto pode inserir ações no terminal. Para executar a ação de outro tripulante, o Piloto deve inserir um PIN Combinado: <em>PIN do Piloto + PIN do Tripulante (PPPP-RRRR)</em>.<br>- <strong style="color: #ff3333;">G2 (Acesso Livre / Caos):</strong> Qualquer membro pode inserir ações. Cuidado: múltiplas ações do mesmo papel ou mudanças de rota na mesma rodada geram conflitos severos e penalidades no motor e combustível.<br>- <strong style="color: #39ff14;">G3 (Domínio Estrito):</strong> Cada especialista só atua na sua área. Não há penalidade por conflito. Se a tripulação for eficiente e atingir a distância, o sucesso (pouso) é garantido.</p>
         <p><strong style="color: var(--crt-text);">A TEMPESTADE:</strong><br>A partir da Rodada 6, a aeronave entra numa tempestade severa. O dano automático a cada rodada aumenta drasticamente, exigindo reparações constantes.</p>
       </div>
@@ -361,9 +361,9 @@
               <div class="stat"><div class="k">Inputs</div><div class="v" id="inputsRemaining">∞</div></div>
             </div>
             <div class="bars">
-              <div class="bar"><div class="k"><span>COMBUSTÍVEL</span><span id="fuel">18</span></div><div class="meter"><div class="fill" id="fuelBar"></div></div></div>
-              <div class="bar"><div class="k"><span>MOTOR</span><span id="engine">10</span></div><div class="meter"><div class="fill" id="engineBar"></div></div></div>
-              <div class="bar"><div class="k"><span>SAÚDE</span><span id="health">10</span></div><div class="meter"><div class="fill" id="healthBar"></div></div></div>            </div>
+              <div class="bar"><div class="k"><span>CONTROLE DE PÂNICO</span><span id="fuel">18</span></div><div class="meter"><div class="fill" id="fuelBar"></div></div></div>
+              <div class="bar"><div class="k"><span>TEMPO</span><span id="engine">10</span></div><div class="meter"><div class="fill" id="engineBar"></div></div></div>
+              <div class="bar"><div class="k"><span>INTEGRIDADE DA CABINE</span><span id="health">10</span></div><div class="meter"><div class="fill" id="healthBar"></div></div></div>            </div>
             <div class="map">
               <div class="distance-row">
                 <div class="distance-head"><span>Aeroporto A</span><span>Restante: <b id="distToA">8</b></span></div>
@@ -385,10 +385,10 @@
           </div>
           <div class="body">
                         <div class="role-portraits" id="rolePortraits">
-              <button class="portrait-btn" data-role="pilot"><img src="terminal-pilot.png" alt="Piloto" /><span>PILOTO</span></button>
-              <button class="portrait-btn" data-role="engineer"><img src="terminal-engineer.png" alt="Engenheiro" /><span>ENGENHEIRO</span></button>
+              <button class="portrait-btn" data-role="pilot"><img src="terminal-pilot.png" alt="Piloto" /><span>COMANDO</span></button>
+              <button class="portrait-btn" data-role="engineer"><img src="terminal-engineer.png" alt="Engenheiro" /><span>NEGOCIADOR</span></button>
               <button class="portrait-btn" data-role="cabin"><img src="terminal-cabin.png" alt="Cabine" /><span>CABINE</span></button>
-              <button class="portrait-btn" data-role="copilot"><img src="terminal-copilot.png" alt="Copiloto" /><span>COPILOTO</span></button>
+              <button class="portrait-btn" data-role="copilot"><img src="terminal-copilot.png" alt="Copiloto" /><span>ESQ. ANTIBOMBA</span></button>
             </div>
             <div class="consoleRow">
                <div class="inputs-wrap" id="actionButtons" style="width:100%;">
@@ -396,7 +396,6 @@
                 <button id="actionBtn2" style="flex:1;">AÇÃO 2</button>
               </div>
               <div class="inputs-wrap">
-                <input id="pinInput" placeholder="INSERIR PIN..." maxlength="9" style="flex:2;" />
                 <button id="submitBtn" style="flex:1; background-color: #228b22; border-color: #32cd32; border-bottom-color: #006400; border-right-color: #006400;">EXECUTAR</button>
               </div>
             </div>

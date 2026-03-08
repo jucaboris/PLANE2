@@ -1,28 +1,35 @@
-# Decision Rights Simulator (GitHub Pages)
+# Sky Authority (Firebase Multiplayer)
 
-Jogo estático (HTML/CSS/JS) para simular **arquiteturas de direitos de decisão** (MBM/PBM) usando um modelo híbrido:
+Simulador educacional estático (HTML/CSS/JS + Firebase Realtime Database) para dinâmica presencial com **Mestre** no telão e **Clientes** no celular.
 
-- **Tela = Central de Comando** (inputs, timer, log, métricas)
-- **Cards impressos = conhecimento exclusivo + PINs por rodada**
+## Modos de acesso
+- Mestre: `index.html?master=true`
+- Cliente: `index.html?role=pilot|engineer|cabin|copilot`
 
-## Rodar local
-Abra `index.html` no navegador (recomendado usar Live Server no VSCode para ESModules).
+## Nova dinâmica (v2)
+- 3 simulações curtas (uma por modo): **G1**, **G2** e **G3**.
+- Cada simulação dura **180 segundos**.
+- Não há PIN/senha.
 
-## Publicar no GitHub Pages
-- Coloque os arquivos na raiz do repositório
-- Settings → Pages → Deploy from branch → main → /(root)
+## Papéis
+- `pilot`: **Comando**
+- `engineer`: **Negociador**
+- `cabin`: **Cabine**
+- `copilot`: **Esquadrão Antibomba**
 
-## Modos
-- **G1**: apenas piloto digita e usa **PIN combinado** `PPPP-RRRR` (piloto + responsável). Limite 2 autorizações por rodada.
-- **G2**: qualquer papel digita seu PIN; conflito é detectado e penaliza.
-- **G3**: cada papel só decide no seu domínio; sem penalidade estrutural.
+## Barras
+- Controle de Pânico
+- Tempo
+- Integridade da Cabine
 
-## Tempestade (para 10 rodadas)
-Config padrão inicia na **rodada 6** e limita inputs para 2.
+## Regras por modo
+- **G1:** primeiro jogador que executar uma ação vira o único autorizado a executar no restante da simulação.
+- **G2:** todos podem decidir tudo; ações repetidas e conflitantes geram punições.
+- **G3:** cada papel executa apenas seu domínio.
 
-## Arquivos
-- `index.html` — UI (central)
-- `config.js` — parâmetros do jogo
-- `pins.js` — tabela de PINs
-- `engine.js` — regras do jogo / validação / resolução
-- `ui.js` — fase/timer, handlers e render  
+## Arquivos principais
+- `index.html` — interface principal
+- `config.js` — parâmetros, ações e efeitos
+- `engine.js` — regras de simulação e validação de inputs
+- `db.js` — conexão Firebase CDN
+- `ui.js` — sincronização tempo real Mestre/Clientes
