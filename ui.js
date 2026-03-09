@@ -18,18 +18,22 @@ const myRole = ["pilot", "engineer", "cabin", "copilot"].includes((params.get("r
   : "pilot";
 
 const DB = { gameState: "gameState", phaseInfo: "phaseInfo", inputs: "inputs" };
-
 const RESPONSIBILITIES = Object.keys(CFG.responsibilities);
-const RESPONSIBILITY_TO_ROLE = Object.entries(CFG.roles).reduce((acc, [role, def]) => {
-  acc[def.responsibility] = role;
-  return acc;
-}, {});
+const MODE_ORDER = ["G1", "G2", "G3"];
+const ACTION_CONTEXT = {
+  command: "Enfrentamento",
+  negotiator: "Negociar",
+  cabin: "Segurança",
+  bomb: "Desarmar bomba",
+};
 
 let state = makeInitialState();
 let running = false;
 let timer = null;
-let selectedResponsibility = isMaster ? "command" : CFG.roles[myRole].responsibility;
+let selectedResponsibility = CFG.roles[myRole].responsibility;
 let selectedAction = null;
+let masterSelectedResponsibility = "command";
+let masterSelectedAction = null;
 
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -46,21 +50,20 @@ const ui = {
   myRoleImage: $("myRoleImage"),
   myRoleLabel: $("myRoleLabel"),
   modeHint: $("modeHint"),
+  characterChoiceLabel: $("characterChoiceLabel"),
+  actionChoiceLabel: $("actionChoiceLabel"),
   roleChoice: $("roleChoice"),
   actionButtons: $("actionButtons"),
   submitBtn: $("submitBtn"),
   startBtn: $("startBtn"),
   resetBtn: $("resetBtn"),
-  fuel: $("fuel"),
-  engine: $("engine"),
-  health: $("health"),
-  fuelBar: $("fuelBar"),
-  engineBar: $("engineBar"),
-  healthBar: $("healthBar"),
+  masterCockpitControls: $("masterCockpitControls"),
   masterVotes: $("masterVotes"),
-  masterRespSelect: $("masterRespSelect"),
-  masterActionSelect: $("masterActionSelect"),
+  masterRespButtons: $("masterRespButtons"),
+  masterActionButtons: $("masterActionButtons"),
   masterExecuteBtn: $("masterExecuteBtn"),
+  masterEndTimeBtn: $("masterEndTimeBtn"),
+  masterNextModeBtn: $("masterNextModeBtn"),
   log: $("log"),
   storyGuidance: $("storyGuidance"),
   storyStartBtn: $("storyStartBtn"),
@@ -103,7 +106,7 @@ function publishPhase() {
     timeLeft: state.roundInfo.timeLeft,
     waitingForResult: state.waitingForResult,
     gameOver: state.gameOver,
-    lastFailure: state.lastFailure,
+    lastFailure: state.lastFailure ?? null,
   });
 }
 
@@ -115,12 +118,12 @@ function modeHint() {
 
 function renderRoleChoice() {
   ui.roleChoice.innerHTML = "";
-  const allowed = state.mode === "G2" || isMaster;
+  const allowed = state.mode === "G2" || (state.mode === "G1" && myRole === "pilot");
 
   RESPONSIBILITIES.forEach((resp) => {
     const btn = document.createElement("button");
     btn.className = `btn ${selectedResponsibility === resp ? "active" : ""}`;
-    btn.textContent = CFG.responsibilities[resp].label;
+    btn.textContent = ACTION_CONTEXT[resp] || CFG.responsibilities[resp].label;
     btn.disabled = !allowed;
     btn.addEventListener("click", () => {
       selectedResponsibility = resp;
@@ -155,41 +158,54 @@ function renderMasterVotes() {
 
   const blocks = RESPONSIBILITIES.map((resp) => {
     const summary = getVoteSummaryForResponsibility(state, resp);
-    const actions = summary.actions.map((a) => {
-      const label = CFG.responsibilities[resp].actions[a.actionId].label;
-      return `<div>${label}: <b>${a.votes}</b> votos (${a.pct}%)</div>`;
-    }).join("");
-    return `<div class="card" style="margin-bottom:8px"><b>${CFG.responsibilities[resp].label}</b><div>${actions || "Sem votos"}</div></div>`;
+    const actions = summary.actions
+      .map((a) => {
+        const label = CFG.responsibilities[resp].actions[a.actionId].label;
+        return `<div>${label}: <b>${a.votes}</b> votos (${a.pct}%)</div>`;
+      })
+      .join("");
+
+    return `<div class="card" style="margin-bottom:8px"><b>Personagem: ${CFG.responsibilities[resp].label}</b><div><small>Ação: ${ACTION_CONTEXT[resp]}</small></div><div>${actions || "Sem votos"}</div></div>`;
   }).join("");
 
   ui.masterVotes.innerHTML = blocks;
 }
 
 function renderMasterSelectors() {
-  if (!isMaster) {
-    ui.masterRespSelect.parentElement.style.display = "none";
-    ui.masterActionSelect.parentElement.style.display = "none";
-    ui.masterExecuteBtn.style.display = "none";
-    return;
-  }
+  if (!isMaster) return;
 
-  ui.masterRespSelect.innerHTML = RESPONSIBILITIES
-    .map((resp) => `<option value="${resp}">${CFG.responsibilities[resp].label}</option>`)
+  const activeResp = state.roundInfo.activeResponsibility || RESPONSIBILITIES[0];
+  if (!RESPONSIBILITIES.includes(masterSelectedResponsibility)) masterSelectedResponsibility = activeResp;
+
+  ui.masterRespButtons.innerHTML = RESPONSIBILITIES.map((resp) => `
+    <button class="btn ${masterSelectedResponsibility === resp ? "active" : ""}" data-master-resp="${resp}">
+      ${ACTION_CONTEXT[resp]}
+    </button>
+  `).join("");
+
+  ui.masterRespButtons.querySelectorAll("[data-master-resp]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      masterSelectedResponsibility = btn.dataset.masterResp;
+      masterSelectedAction = null;
+      renderMasterSelectors();
+    });
+  });
+
+  const actions = CFG.responsibilities[masterSelectedResponsibility].actions;
+  const summary = getVoteSummaryForResponsibility(state, masterSelectedResponsibility);
+  const winner = summary.actions[0]?.actionId || Object.keys(actions)[0];
+  if (!masterSelectedAction || !actions[masterSelectedAction]) masterSelectedAction = winner;
+
+  ui.masterActionButtons.innerHTML = Object.entries(actions)
+    .map(([id, def]) => `<button class="btn ${masterSelectedAction === id ? "active" : ""}" data-master-action="${id}">${def.label}</button>`)
     .join("");
 
-  ui.masterRespSelect.value = state.roundInfo.activeResponsibility || RESPONSIBILITIES[0];
-  updateMasterActionOptions();
-}
-
-function updateMasterActionOptions() {
-  const resp = ui.masterRespSelect.value;
-  const actions = CFG.responsibilities[resp].actions;
-  const summary = getVoteSummaryForResponsibility(state, resp);
-  const winner = summary.actions[0]?.actionId;
-
-  ui.masterActionSelect.innerHTML = Object.entries(actions)
-    .map(([id, def]) => `<option value="${id}" ${winner === id ? "selected" : ""}>${def.label}</option>`)
-    .join("");
+  ui.masterActionButtons.querySelectorAll("[data-master-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      masterSelectedAction = btn.dataset.masterAction;
+      renderMasterSelectors();
+    });
+  });
 }
 
 function render() {
@@ -200,16 +216,12 @@ function render() {
 
   const roleCfg = CFG.roles[myRole];
   ui.myRoleImage.src = roleCfg.image;
-  ui.myRoleLabel.textContent = `${roleCfg.label} (${isMaster ? "Mestre" : "Cliente"})`;
+  ui.myRoleLabel.textContent = isMaster ? "Mestre (controle da rodada)" : `${roleCfg.label} (Personagem)`;
   ui.cockpitTitle.textContent = isMaster ? "Cockpit do Mestre" : `Cockpit ${roleCfg.label}`;
   ui.modeHint.textContent = modeHint();
 
-  ui.fuel.textContent = Math.round(state.resources.panicControl);
-  ui.engine.textContent = Math.round(state.resources.tempo);
-  ui.health.textContent = Math.round(state.resources.cabinIntegrity);
-  ui.fuelBar.style.width = `${state.resources.panicControl}%`;
-  ui.engineBar.style.width = `${state.resources.tempo}%`;
-  ui.healthBar.style.width = `${state.resources.cabinIntegrity}%`;
+  ui.characterChoiceLabel.textContent = "Personagem (contexto da ação)";
+  ui.actionChoiceLabel.textContent = "Ação";
 
   renderRoleChoice();
   renderActions();
@@ -217,10 +229,23 @@ function render() {
   renderMasterSelectors();
 
   const canVote = canRoleVote(myRole, selectedResponsibility) && state.phase === "VOTING" && !state.gameOver;
-  ui.submitBtn.disabled = (!isMaster && !canVote) || !selectedAction || state.phase === "RESOLUTION" || state.phase === "END";
+  ui.submitBtn.style.display = isMaster ? "none" : "inline-block";
+  ui.submitBtn.disabled = !canVote || !selectedAction || state.phase === "RESOLUTION" || state.phase === "END";
 
   ui.startBtn.style.display = isMaster ? "inline-block" : "none";
   ui.resetBtn.style.display = isMaster ? "inline-block" : "none";
+  ui.roleChoice.style.display = isMaster ? "none" : "grid";
+  ui.actionButtons.style.display = isMaster ? "none" : "grid";
+  ui.characterChoiceLabel.style.display = isMaster ? "none" : "block";
+  ui.actionChoiceLabel.style.display = isMaster ? "none" : "block";
+  ui.masterCockpitControls.style.display = isMaster ? "block" : "none";
+
+  if (isMaster) {
+    ui.masterExecuteBtn.disabled = state.gameOver;
+    ui.masterExecuteBtn.textContent = "Executar tarefa";
+    ui.masterEndTimeBtn.disabled = state.phase !== "VOTING" || state.gameOver;
+    ui.masterNextModeBtn.disabled = state.phase === "VOTING";
+  }
 
   if (!isMaster && state.waitingForResult && state.phase === "RESOLUTION") {
     showPopup("Ações em progresso", "O tempo de votação acabou. Aguarde o Mestre executar os resultados da rodada.");
@@ -294,6 +319,37 @@ async function runTimerLoop() {
   }, 1000);
 }
 
+async function forceEndVotingNow() {
+  if (!isMaster || state.phase !== "VOTING") return;
+  tickVoting(state, state.roundInfo.timeLeft || 0);
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+  running = false;
+  await publishState();
+  await publishPhase();
+  render();
+}
+
+async function nextMode() {
+  if (!isMaster || state.phase === "VOTING") return;
+  const idx = MODE_ORDER.indexOf(state.mode);
+  const next = MODE_ORDER[(idx + 1) % MODE_ORDER.length];
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+  running = false;
+  resetForNewMode(state, next);
+  masterSelectedResponsibility = "command";
+  masterSelectedAction = null;
+  await remove(ref(db, DB.inputs));
+  await publishState();
+  await publishPhase();
+  render();
+}
+
 function bindUI() {
   ui.popupCloseBtn.addEventListener("click", hidePopup);
   ui.startExperienceBtn.addEventListener("click", () => show(isMaster ? "storyScreen" : "gameScreen"));
@@ -303,7 +359,9 @@ function bindUI() {
       if (!isMaster) return;
       const mode = btn.dataset.mode;
       resetForNewMode(state, mode);
-      selectedResponsibility = mode === "G2" ? "command" : CFG.roles[myRole].responsibility;
+      masterSelectedResponsibility = "command";
+      masterSelectedAction = null;
+      selectedResponsibility = CFG.roles[myRole].responsibility;
       selectedAction = null;
       ui.storyGuidance.textContent = modeHint();
       ui.storyStartBtn.disabled = false;
@@ -320,39 +378,35 @@ function bindUI() {
   });
 
   ui.submitBtn.addEventListener("click", async () => {
-    if (!selectedAction) return;
+    if (isMaster || !selectedAction) return;
 
-    if (!canRoleVote(myRole, selectedResponsibility) && !isMaster) {
+    if (!canRoleVote(myRole, selectedResponsibility)) {
       showPopup("Bloqueado pelo Comando", "No G1, apenas o Comando pode executar decisões desta rodada.");
       return;
     }
 
     const payload = {
-      playerRole: isMaster ? "pilot" : myRole,
+      playerRole: myRole,
       responsibility: selectedResponsibility,
       actionId: selectedAction,
       sentAt: Date.now(),
     };
 
-    if (isMaster) {
-      await processInput(payload);
-    } else {
-      await push(ref(db, DB.inputs), payload);
-      showPopup("Voto registrado", "Seu voto foi computado ao vivo no painel do Mestre.");
-    }
-
+    await push(ref(db, DB.inputs), payload);
+    showPopup("Voto registrado", "Seu voto foi computado ao vivo no painel do Mestre.");
     render();
   });
 
-  ui.masterRespSelect.addEventListener("change", () => {
-    updateMasterActionOptions();
-  });
-
   ui.masterExecuteBtn.addEventListener("click", async () => {
-    if (!isMaster || state.phase !== "RESOLUTION") return;
-    const responsibility = ui.masterRespSelect.value;
-    const actionId = ui.masterActionSelect.value;
-    const result = resolveResponsibility(state, responsibility, actionId);
+    if (!isMaster || state.gameOver) return;
+    if (!masterSelectedResponsibility || !masterSelectedAction) return;
+
+    if (state.phase === "VOTING") {
+      await forceEndVotingNow();
+    }
+    if (state.phase !== "RESOLUTION") return;
+
+    const result = resolveResponsibility(state, masterSelectedResponsibility, masterSelectedAction);
     await publishState();
     await publishPhase();
     render();
@@ -362,11 +416,11 @@ function bindUI() {
       return;
     }
 
-    if (state.phase === "VOTING") {
-      runTimerLoop();
-    }
+    if (state.phase === "VOTING") runTimerLoop();
   });
 
+  ui.masterEndTimeBtn.addEventListener("click", forceEndVotingNow);
+  ui.masterNextModeBtn.addEventListener("click", nextMode);
   ui.startBtn.addEventListener("click", runTimerLoop);
 
   ui.resetBtn.addEventListener("click", async () => {
@@ -375,6 +429,8 @@ function bindUI() {
     running = false;
     timer = null;
     resetForNewMode(state, state.mode);
+    masterSelectedResponsibility = "command";
+    masterSelectedAction = null;
     await remove(ref(db, DB.inputs));
     await publishState();
     await publishPhase();
@@ -393,11 +449,9 @@ async function init() {
     resetForNewMode(state, "G1");
     await publishState();
     await publishPhase();
-    show("bootScreen");
-  } else {
-    show("bootScreen");
   }
 
+  show("bootScreen");
   render();
 }
 
