@@ -103,7 +103,7 @@ function publishPhase() {
     timeLeft: state.roundInfo.timeLeft,
     waitingForResult: state.waitingForResult,
     gameOver: state.gameOver,
-    lastFailure: state.lastFailure,
+    lastFailure: state.lastFailure ?? null,
   });
 }
 
@@ -115,7 +115,7 @@ function modeHint() {
 
 function renderRoleChoice() {
   ui.roleChoice.innerHTML = "";
-  const allowed = state.mode === "G2" || isMaster;
+  const allowed = state.mode === "G2" || isMaster || (state.mode === "G1" && myRole === "pilot");
 
   RESPONSIBILITIES.forEach((resp) => {
     const btn = document.createElement("button");
@@ -217,10 +217,19 @@ function render() {
   renderMasterSelectors();
 
   const canVote = canRoleVote(myRole, selectedResponsibility) && state.phase === "VOTING" && !state.gameOver;
-  ui.submitBtn.disabled = (!isMaster && !canVote) || !selectedAction || state.phase === "RESOLUTION" || state.phase === "END";
+  ui.submitBtn.style.display = isMaster ? "none" : "inline-block";
+  ui.submitBtn.disabled = !canVote || !selectedAction || state.phase === "RESOLUTION" || state.phase === "END";
 
   ui.startBtn.style.display = isMaster ? "inline-block" : "none";
   ui.resetBtn.style.display = isMaster ? "inline-block" : "none";
+
+  ui.roleChoice.style.display = isMaster ? "none" : "grid";
+  ui.actionButtons.style.display = isMaster ? "none" : "grid";
+
+  if (isMaster) {
+    ui.masterExecuteBtn.disabled = state.phase !== "RESOLUTION" || state.gameOver;
+    ui.masterExecuteBtn.textContent = state.phase === "RESOLUTION" ? "Executar responsabilidade" : "Aguardar fim do tempo para executar";
+  }
 
   if (!isMaster && state.waitingForResult && state.phase === "RESOLUTION") {
     showPopup("Ações em progresso", "O tempo de votação acabou. Aguarde o Mestre executar os resultados da rodada.");
@@ -320,26 +329,22 @@ function bindUI() {
   });
 
   ui.submitBtn.addEventListener("click", async () => {
-    if (!selectedAction) return;
+    if (isMaster || !selectedAction) return;
 
-    if (!canRoleVote(myRole, selectedResponsibility) && !isMaster) {
+    if (!canRoleVote(myRole, selectedResponsibility)) {
       showPopup("Bloqueado pelo Comando", "No G1, apenas o Comando pode executar decisões desta rodada.");
       return;
     }
 
     const payload = {
-      playerRole: isMaster ? "pilot" : myRole,
+      playerRole: myRole,
       responsibility: selectedResponsibility,
       actionId: selectedAction,
       sentAt: Date.now(),
     };
 
-    if (isMaster) {
-      await processInput(payload);
-    } else {
-      await push(ref(db, DB.inputs), payload);
-      showPopup("Voto registrado", "Seu voto foi computado ao vivo no painel do Mestre.");
-    }
+    await push(ref(db, DB.inputs), payload);
+    showPopup("Voto registrado", "Seu voto foi computado ao vivo no painel do Mestre.");
 
     render();
   });
