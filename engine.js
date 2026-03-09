@@ -33,8 +33,6 @@ function blankResolved() {
   }, {});
 }
 
-const ACTION_INDEX = allActions();
-
 export function makeInitialState() {
   return {
     mode: "G1",
