@@ -38,19 +38,6 @@
     </div>
   </div>
 
-  <div id="storyScreen" class="screen">
-    <div class="card">
-      <h3>Selecionar dinâmica</h3>
-      <div class="row">
-        <button class="btn group-pick" data-mode="G1">G1</button>
-        <button class="btn group-pick" data-mode="G2">G2</button>
-        <button class="btn group-pick" data-mode="G3">G3</button>
-      </div>
-      <p id="storyGuidance">Escolha um modo para iniciar.</p>
-      <button id="storyStartBtn" class="btn" disabled>Entrar no cockpit</button>
-    </div>
-  </div>
-
   <div id="gameScreen" class="screen">
     <div class="row">
       <span class="pill">Modo: <b id="modeBadge">G1</b></span>
@@ -88,6 +75,10 @@
               <div class="action-list" id="masterActionButtons"></div>
             </div>
             <button id="masterExecuteBtn" class="btn">Executar responsabilidade</button>
+            <div class="row" style="margin-top:8px">
+              <button id="masterEndTimeBtn" class="btn">Encerrar tempo agora</button>
+              <button id="masterNextModeBtn" class="btn">Próximo modo</button>
+            </div>
           </div>
 
           <div class="row" style="margin-top:10px">
