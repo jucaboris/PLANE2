@@ -1,364 +1,383 @@
 import { GAME_CONFIG as CFG } from "./config.js";
 import {
   makeInitialState,
-  resetSimulation,
-  startSimulation,
-  tickSimulation,
-  submitInput,
-  getRoleActions,
-  getAllActionsByRole,
+  resetForNewMode,
+  startVotingRound,
+  tickVoting,
+  submitVote,
+  resolveResponsibility,
+  getVoteSummaryForResponsibility,
   formatLogForUI,
 } from "./engine.js";
 import { db, ref, set, onValue, onChildAdded, push, remove } from "./db.js";
 
-const urlParams = new URLSearchParams(window.location.search);
-const isMaster = urlParams.get("master") === "true";
-const roleFromUrl = (urlParams.get("role") || "pilot").toLowerCase();
-const VALID_ROLES = ["pilot", "engineer", "cabin", "copilot"];
-const myRole = VALID_ROLES.includes(roleFromUrl) ? roleFromUrl : "pilot";
+const params = new URLSearchParams(window.location.search);
+const isMaster = params.get("master") === "true";
+const myRole = ["pilot", "engineer", "cabin", "copilot"].includes((params.get("role") || "pilot").toLowerCase())
+  ? (params.get("role") || "pilot").toLowerCase()
+  : "pilot";
 
-const DB_PATHS = { gameState: "gameState", phaseInfo: "phaseInfo", inputs: "inputs" };
+const DB = { gameState: "gameState", phaseInfo: "phaseInfo", inputs: "inputs" };
+
+const RESPONSIBILITIES = Object.keys(CFG.responsibilities);
+const RESPONSIBILITY_TO_ROLE = Object.entries(CFG.roles).reduce((acc, [role, def]) => {
+  acc[def.responsibility] = role;
+  return acc;
+}, {});
 
 let state = makeInitialState();
-let selectedRole = isMaster ? "pilot" : myRole;
-let selectedAction = null;
 let running = false;
-let interval = null;
-
-const ROLE_NAMES = CFG.roles;
-const ALL_ACTIONS_BY_ROLE = getAllActionsByRole();
+let timer = null;
+let selectedResponsibility = isMaster ? "command" : CFG.roles[myRole].responsibility;
+let selectedAction = null;
 
 const $ = (id) => document.getElementById(id);
-
 const ui = {
+  bootScreen: $("bootScreen"),
+  storyScreen: $("storyScreen"),
+  gameScreen: $("gameScreen"),
   loadingStatus: $("loadingStatus"),
   startExperienceBtn: $("startExperienceBtn"),
   modeBadge: $("modeBadge"),
+  phase: $("phase"),
+  round: $("round"),
+  timer: $("timer"),
+  cockpitTitle: $("cockpitTitle"),
+  myRoleImage: $("myRoleImage"),
+  myRoleLabel: $("myRoleLabel"),
+  modeHint: $("modeHint"),
+  roleChoice: $("roleChoice"),
+  actionButtons: $("actionButtons"),
+  submitBtn: $("submitBtn"),
   startBtn: $("startBtn"),
   resetBtn: $("resetBtn"),
-  phaseEl: $("phase"),
-  timerEl: $("timer"),
-  actionBtn1: $("actionBtn1"),
-  actionBtn2: $("actionBtn2"),
-  submitBtn: $("submitBtn"),
-  skipBtn: $("skipBtn"),
-  routeA: $("routeA"),
-  routeB: $("routeB"),
-  roundEl: $("round"),
-  distEl: $("dist"),
-  targetEl: $("target"),
-  inputsRemainingEl: $("inputsRemaining"),
-  fuelEl: $("fuel"),
-  engineEl: $("engine"),
-  healthEl: $("health"),
+  fuel: $("fuel"),
+  engine: $("engine"),
+  health: $("health"),
   fuelBar: $("fuelBar"),
   engineBar: $("engineBar"),
   healthBar: $("healthBar"),
-  logEl: $("log"),
-  g1Hint: $("g1Hint"),
+  masterVotes: $("masterVotes"),
+  masterRespSelect: $("masterRespSelect"),
+  masterActionSelect: $("masterActionSelect"),
+  masterExecuteBtn: $("masterExecuteBtn"),
+  log: $("log"),
   storyGuidance: $("storyGuidance"),
   storyStartBtn: $("storyStartBtn"),
-  rolePortraits: $("rolePortraits"),
+  popup: $("statusPopup"),
+  popupTitle: $("popupTitle"),
+  popupMessage: $("popupMessage"),
+  popupCloseBtn: $("popupCloseBtn"),
 };
 
-function showScreen(screenId) {
-  ["bootScreen", "introScreen", "splashScreen", "menuScreen", "storyScreen", "gameScreen", "charactersScreen", "instructionsScreen"].forEach((id) => {
-    const el = $(id);
-    if (el) el.style.display = "none";
-  });
-  const t = $(screenId);
-  if (t) t.style.display = "flex";
+function show(screenId) {
+  [ui.bootScreen, ui.storyScreen, ui.gameScreen].forEach((s) => s?.classList.remove("active"));
+  $(screenId)?.classList.add("active");
 }
 
-function serializeState(s) {
-  return JSON.parse(JSON.stringify(s));
+function showPopup(title, message) {
+  ui.popupTitle.textContent = title;
+  ui.popupMessage.textContent = message;
+  ui.popup.classList.add("active");
 }
 
-async function publishState() {
-  await set(ref(db, DB_PATHS.gameState), serializeState(state));
+function hidePopup() {
+  ui.popup.classList.remove("active");
 }
 
-async function publishPhaseInfo() {
-  await set(ref(db, DB_PATHS.phaseInfo), {
+function canRoleVote(role, responsibility) {
+  if (state.mode === "G1") return role === "pilot";
+  if (state.mode === "G2") return true;
+  return CFG.roles[role].responsibility === responsibility;
+}
+
+function publishState() {
+  return set(ref(db, DB.gameState), JSON.parse(JSON.stringify(state)));
+}
+
+function publishPhase() {
+  return set(ref(db, DB.phaseInfo), {
     mode: state.mode,
     phase: state.phase,
-    timer: state.simulation.timeLeft,
-    g1CommanderRole: state.simulation.g1CommanderRole,
+    round: state.round,
+    timeLeft: state.roundInfo.timeLeft,
+    waitingForResult: state.waitingForResult,
+    gameOver: state.gameOver,
+    lastFailure: state.lastFailure,
   });
 }
 
-function normalizeState(raw) {
-  const base = makeInitialState();
-  return {
-    ...base,
-    ...raw,
-    resources: { ...base.resources, ...(raw?.resources || {}) },
-    simulation: { ...base.simulation, ...(raw?.simulation || {}) },
-    stats: {
-      ...base.stats,
-      ...(raw?.stats || {}),
-      actionsByRole: { ...base.stats.actionsByRole, ...(raw?.stats?.actionsByRole || {}) },
-      actionsById: { ...(raw?.stats?.actionsById || {}) },
-    },
-    log: Array.isArray(raw?.log) ? raw.log : [],
-  };
+function modeHint() {
+  if (state.mode === "G1") return "G1: apenas COMANDO vota/executa por todas as responsabilidades.";
+  if (state.mode === "G2") return "G2: todos votam em todas as responsabilidades.";
+  return "G3: cada perfil vota só na própria responsabilidade.";
 }
 
-function getActionsForCurrentContext() {
-  if (state.mode === "G2") {
-    const role = selectedRole;
-    return ALL_ACTIONS_BY_ROLE[role] || [];
-  }
+function renderRoleChoice() {
+  ui.roleChoice.innerHTML = "";
+  const allowed = state.mode === "G2" || isMaster;
 
-  const role = isMaster ? selectedRole : myRole;
-  return getRoleActions(role);
-}
-
-function populateActions() {
-  const actions = getActionsForCurrentContext();
-  if (!actions.some((a) => a.id === selectedAction)) selectedAction = actions[0]?.id || null;
-
-  [ui.actionBtn1, ui.actionBtn2].forEach((btn, i) => {
-    if (!btn) return;
-    const a = actions[i];
-    if (!a) {
-      btn.style.display = "none";
-      btn.dataset.actionId = "";
-      return;
-    }
-    btn.style.display = "inline-block";
-    btn.dataset.actionId = a.id;
-    btn.textContent = a.label.toUpperCase();
-    btn.classList.toggle("active", selectedAction === a.id);
+  RESPONSIBILITIES.forEach((resp) => {
+    const btn = document.createElement("button");
+    btn.className = `btn ${selectedResponsibility === resp ? "active" : ""}`;
+    btn.textContent = CFG.responsibilities[resp].label;
+    btn.disabled = !allowed;
+    btn.addEventListener("click", () => {
+      selectedResponsibility = resp;
+      selectedAction = null;
+      render();
+    });
+    ui.roleChoice.appendChild(btn);
   });
 }
 
-function canClientExecute() {
-  if (isMaster) return true;
-  if (state.phase !== "RUNNING") return false;
+function renderActions() {
+  ui.actionButtons.innerHTML = "";
+  const actions = CFG.responsibilities[selectedResponsibility].actions;
 
-  if (state.mode === "G1") {
-    if (!state.simulation.g1CommanderRole) return true;
-    return state.simulation.g1CommanderRole === myRole;
+  Object.entries(actions).forEach(([actionId, def]) => {
+    const btn = document.createElement("button");
+    btn.className = `btn ${selectedAction === actionId ? "active" : ""}`;
+    btn.textContent = def.label;
+    btn.addEventListener("click", () => {
+      selectedAction = actionId;
+      renderActions();
+    });
+    ui.actionButtons.appendChild(btn);
+  });
+}
+
+function renderMasterVotes() {
+  if (!isMaster) {
+    ui.masterVotes.parentElement.style.display = "none";
+    return;
   }
 
-  if (state.mode === "G2") return true;
-  return selectedRole === myRole;
+  const blocks = RESPONSIBILITIES.map((resp) => {
+    const summary = getVoteSummaryForResponsibility(state, resp);
+    const actions = summary.actions.map((a) => {
+      const label = CFG.responsibilities[resp].actions[a.actionId].label;
+      return `<div>${label}: <b>${a.votes}</b> votos (${a.pct}%)</div>`;
+    }).join("");
+    return `<div class="card" style="margin-bottom:8px"><b>${CFG.responsibilities[resp].label}</b><div>${actions || "Sem votos"}</div></div>`;
+  }).join("");
+
+  ui.masterVotes.innerHTML = blocks;
+}
+
+function renderMasterSelectors() {
+  if (!isMaster) {
+    ui.masterRespSelect.parentElement.style.display = "none";
+    ui.masterActionSelect.parentElement.style.display = "none";
+    ui.masterExecuteBtn.style.display = "none";
+    return;
+  }
+
+  ui.masterRespSelect.innerHTML = RESPONSIBILITIES
+    .map((resp) => `<option value="${resp}">${CFG.responsibilities[resp].label}</option>`)
+    .join("");
+
+  ui.masterRespSelect.value = state.roundInfo.activeResponsibility || RESPONSIBILITIES[0];
+  updateMasterActionOptions();
+}
+
+function updateMasterActionOptions() {
+  const resp = ui.masterRespSelect.value;
+  const actions = CFG.responsibilities[resp].actions;
+  const summary = getVoteSummaryForResponsibility(state, resp);
+  const winner = summary.actions[0]?.actionId;
+
+  ui.masterActionSelect.innerHTML = Object.entries(actions)
+    .map(([id, def]) => `<option value="${id}" ${winner === id ? "selected" : ""}>${def.label}</option>`)
+    .join("");
 }
 
 function render() {
-  if (ui.modeBadge) ui.modeBadge.textContent = state.mode;
-  if (ui.phaseEl) ui.phaseEl.textContent = state.phase;
-  if (ui.timerEl) ui.timerEl.textContent = String(Math.ceil(state.simulation.timeLeft));
+  ui.modeBadge.textContent = state.mode;
+  ui.phase.textContent = state.phase;
+  ui.round.textContent = String(state.round);
+  ui.timer.textContent = String(Math.ceil(state.roundInfo.timeLeft));
 
-  if (ui.roundEl) ui.roundEl.textContent = "1";
-  if (ui.distEl) ui.distEl.textContent = "--";
-  if (ui.targetEl) ui.targetEl.textContent = "MISSÃO";
-  if (ui.inputsRemainingEl) ui.inputsRemainingEl.textContent = "LIVRE";
+  const roleCfg = CFG.roles[myRole];
+  ui.myRoleImage.src = roleCfg.image;
+  ui.myRoleLabel.textContent = `${roleCfg.label} (${isMaster ? "Mestre" : "Cliente"})`;
+  ui.cockpitTitle.textContent = isMaster ? "Cockpit do Mestre" : `Cockpit ${roleCfg.label}`;
+  ui.modeHint.textContent = modeHint();
 
-  if (ui.fuelEl) ui.fuelEl.textContent = `${Math.round(state.resources.panicControl)}`;
-  if (ui.engineEl) ui.engineEl.textContent = `${Math.round(state.resources.tempo)}`;
-  if (ui.healthEl) ui.healthEl.textContent = `${Math.round(state.resources.cabinIntegrity)}`;
+  ui.fuel.textContent = Math.round(state.resources.panicControl);
+  ui.engine.textContent = Math.round(state.resources.tempo);
+  ui.health.textContent = Math.round(state.resources.cabinIntegrity);
+  ui.fuelBar.style.width = `${state.resources.panicControl}%`;
+  ui.engineBar.style.width = `${state.resources.tempo}%`;
+  ui.healthBar.style.width = `${state.resources.cabinIntegrity}%`;
 
-  if (ui.fuelBar) ui.fuelBar.style.width = `${state.resources.panicControl}%`;
-  if (ui.engineBar) ui.engineBar.style.width = `${state.resources.tempo}%`;
-  if (ui.healthBar) ui.healthBar.style.width = `${state.resources.cabinIntegrity}%`;
+  renderRoleChoice();
+  renderActions();
+  renderMasterVotes();
+  renderMasterSelectors();
 
-  if (ui.logEl) {
-    ui.logEl.innerHTML = state.log
-      .slice(-28)
-      .map(formatLogForUI)
-      .map((x) => `<div class="${x.cls}">${x.text}</div>`)
-      .join("");
+  const canVote = canRoleVote(myRole, selectedResponsibility) && state.phase === "VOTING" && !state.gameOver;
+  ui.submitBtn.disabled = (!isMaster && !canVote) || !selectedAction || state.phase === "RESOLUTION" || state.phase === "END";
+
+  ui.startBtn.style.display = isMaster ? "inline-block" : "none";
+  ui.resetBtn.style.display = isMaster ? "inline-block" : "none";
+
+  if (!isMaster && state.waitingForResult && state.phase === "RESOLUTION") {
+    showPopup("Ações em progresso", "O tempo de votação acabou. Aguarde o Mestre executar os resultados da rodada.");
   }
 
-  if (ui.g1Hint) {
-    if (state.mode === "G1") {
-      const commander = state.simulation.g1CommanderRole ? ROLE_NAMES[state.simulation.g1CommanderRole] : "aguardando primeiro comando";
-      ui.g1Hint.textContent = `G1: somente o primeiro papel que executar assume o terminal. Atual: ${commander}.`;
-    } else if (state.mode === "G2") {
-      ui.g1Hint.textContent = "G2: todos podem decidir tudo. Ações repetidas/conflitantes geram punição.";
-    } else {
-      ui.g1Hint.textContent = "G3: cada papel decide apenas seu domínio técnico.";
-    }
+  if (state.gameOver && state.lastFailure && isMaster) {
+    showPopup("Missão Falhou", state.lastFailure);
   }
 
-  if (ui.startBtn) ui.startBtn.style.display = isMaster ? "inline-block" : "none";
-  if (ui.resetBtn) ui.resetBtn.style.display = isMaster ? "inline-block" : "none";
-
-  if (ui.routeA) ui.routeA.style.display = "none";
-  if (ui.routeB) ui.routeB.style.display = "none";
-  if (ui.skipBtn) ui.skipBtn.style.display = "none";
-
-  if (ui.rolePortraits) {
-    ui.rolePortraits.querySelectorAll("[data-role]").forEach((btn) => {
-      const role = btn.dataset.role;
-      let canSelect = isMaster;
-      if (!isMaster && state.mode === "G2") canSelect = true;
-      if (!isMaster && state.mode === "G3") canSelect = false;
-      if (!isMaster && state.mode === "G1") canSelect = false;
-
-      if (!isMaster && state.mode !== "G2") selectedRole = myRole;
-
-      btn.disabled = !canSelect;
-      btn.style.pointerEvents = canSelect ? "auto" : "none";
-      btn.classList.toggle("active", role === (state.mode === "G2" ? selectedRole : (isMaster ? selectedRole : myRole)));
-    });
-  }
-
-  populateActions();
-
-  if (ui.submitBtn) ui.submitBtn.disabled = !canClientExecute() || !selectedAction;
+  ui.log.innerHTML = state.log.slice(-30).map(formatLogForUI).map((l) => `<div class="${l.cls}">${l.text}</div>`).join("");
 }
 
-async function processIncomingInput(payload) {
-  const result = submitInput(state, payload);
-  if (result.ok) {
-    await publishState();
-    await publishPhaseInfo();
-  }
+async function processInput(payload) {
+  const result = submitVote(state, payload);
+  if (!result.ok) return result;
+  await publishState();
+  await publishPhase();
+  return result;
 }
 
 function bindRealtime() {
-  onValue(ref(db, DB_PATHS.gameState), (snapshot) => {
-    const v = snapshot.val();
+  onValue(ref(db, DB.gameState), (snap) => {
+    const v = snap.val();
     if (!v) return;
-    state = normalizeState(v);
+    state = v;
     render();
   });
 
-  onValue(ref(db, DB_PATHS.phaseInfo), (snapshot) => {
-    const v = snapshot.val();
-    if (!v) return;
-    if (!isMaster) {
-      if (typeof v.phase === "string") state.phase = v.phase;
-      if (v.g1CommanderRole !== undefined) state.simulation.g1CommanderRole = v.g1CommanderRole;
-      if (typeof v.timer === "number") state.simulation.timeLeft = v.timer;
-      if (typeof v.mode === "string") state.mode = v.mode;
-      render();
-    }
+  onValue(ref(db, DB.phaseInfo), (snap) => {
+    const v = snap.val();
+    if (!v || isMaster) return;
+    state.phase = v.phase;
+    state.round = v.round;
+    state.roundInfo.timeLeft = v.timeLeft;
+    state.waitingForResult = !!v.waitingForResult;
+    state.gameOver = !!v.gameOver;
+    state.lastFailure = v.lastFailure || null;
+    state.mode = v.mode || state.mode;
+    render();
   });
 
   if (isMaster) {
-    onChildAdded(ref(db, DB_PATHS.inputs), async (snap) => {
+    onChildAdded(ref(db, DB.inputs), async (snap) => {
       const val = snap.val();
-      if (!val || typeof val !== "object") return;
-      await processIncomingInput(val);
-      await remove(ref(db, `${DB_PATHS.inputs}/${snap.key}`));
+      if (!val) return;
+      await processInput(val);
+      await remove(ref(db, `${DB.inputs}/${snap.key}`));
     });
   }
 }
 
-async function runMasterTimer() {
-  if (running) return;
+async function runTimerLoop() {
+  if (!isMaster || running) return;
   running = true;
-  startSimulation(state);
+  startVotingRound(state);
   await publishState();
-  await publishPhaseInfo();
+  await publishPhase();
   render();
 
-  interval = setInterval(async () => {
-    tickSimulation(state, 1);
-    render();
+  timer = setInterval(async () => {
+    tickVoting(state, 1);
     await publishState();
-    await publishPhaseInfo();
+    await publishPhase();
+    render();
 
-    if (state.phase === "END" || state.gameOver) {
-      clearInterval(interval);
-      interval = null;
+    if (state.phase !== "VOTING" || state.gameOver) {
+      clearInterval(timer);
+      timer = null;
       running = false;
     }
   }, 1000);
 }
 
 function bindUI() {
-  $("btnIniciar")?.addEventListener("click", () => showScreen("storyScreen"));
-  $("btnPersonagens")?.addEventListener("click", () => showScreen("charactersScreen"));
-  $("btnInstrucoes")?.addEventListener("click", () => showScreen("instructionsScreen"));
-  $("btnSair")?.addEventListener("click", () => showScreen("splashScreen"));
-  $("splashScreen")?.addEventListener("click", () => showScreen("menuScreen"));
-  ui.startExperienceBtn?.addEventListener("click", () => showScreen("splashScreen"));
-
-  document.querySelectorAll(".btnVoltar").forEach((b) => b.addEventListener("click", () => showScreen("menuScreen")));
+  ui.popupCloseBtn.addEventListener("click", hidePopup);
+  ui.startExperienceBtn.addEventListener("click", () => show(isMaster ? "storyScreen" : "gameScreen"));
 
   document.querySelectorAll(".group-pick").forEach((btn) => {
     btn.addEventListener("click", async () => {
       if (!isMaster) return;
-      const mode = btn.dataset.mode || "G1";
-      resetSimulation(state, mode);
-      if (ui.storyGuidance) {
-        ui.storyGuidance.textContent = mode === "G1"
-          ? "G1: primeiro jogador que executar trava o terminal para seu papel." : mode === "G2"
-            ? "G2: todos controlam tudo; conflitos geram punições." : "G3: domínio estrito por responsabilidade.";
-      }
-      ui.storyStartBtn.disabled = false;
-      document.querySelectorAll(".group-pick").forEach((x) => x.classList.toggle("active", x.dataset.mode === mode));
-      await publishState();
-      await publishPhaseInfo();
-      render();
-    });
-  });
-
-  ui.storyStartBtn?.addEventListener("click", () => {
-    showScreen("gameScreen");
-    if (isMaster) runMasterTimer();
-  });
-
-  [ui.actionBtn1, ui.actionBtn2].forEach((btn) => {
-    btn?.addEventListener("click", () => {
-      const id = btn.dataset.actionId;
-      if (!id) return;
-      selectedAction = id;
-      populateActions();
-    });
-  });
-
-  ui.rolePortraits?.querySelectorAll("[data-role]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const role = btn.dataset.role;
-      if (!role) return;
-      if (!isMaster && state.mode !== "G2") return;
-      selectedRole = role;
+      const mode = btn.dataset.mode;
+      resetForNewMode(state, mode);
+      selectedResponsibility = mode === "G2" ? "command" : CFG.roles[myRole].responsibility;
       selectedAction = null;
+      ui.storyGuidance.textContent = modeHint();
+      ui.storyStartBtn.disabled = false;
+      document.querySelectorAll(".group-pick").forEach((x) => x.classList.toggle("active", x === btn));
+      await publishState();
+      await publishPhase();
       render();
     });
   });
 
-  ui.submitBtn?.addEventListener("click", async () => {
-    if (!selectedAction || !canClientExecute()) return;
+  ui.storyStartBtn.addEventListener("click", () => {
+    show("gameScreen");
+    if (isMaster) runTimerLoop();
+  });
+
+  ui.submitBtn.addEventListener("click", async () => {
+    if (!selectedAction) return;
+
+    if (!canRoleVote(myRole, selectedResponsibility) && !isMaster) {
+      showPopup("Bloqueado pelo Comando", "No G1, apenas o Comando pode executar decisões desta rodada.");
+      return;
+    }
 
     const payload = {
-      playerRole: isMaster ? selectedRole : myRole,
-      actingRole: state.mode === "G2" ? selectedRole : (isMaster ? selectedRole : myRole),
+      playerRole: isMaster ? "pilot" : myRole,
+      responsibility: selectedResponsibility,
       actionId: selectedAction,
       sentAt: Date.now(),
     };
 
     if (isMaster) {
-      await processIncomingInput(payload);
-      render();
+      await processInput(payload);
+    } else {
+      await push(ref(db, DB.inputs), payload);
+      showPopup("Voto registrado", "Seu voto foi computado ao vivo no painel do Mestre.");
+    }
+
+    render();
+  });
+
+  ui.masterRespSelect.addEventListener("change", () => {
+    updateMasterActionOptions();
+  });
+
+  ui.masterExecuteBtn.addEventListener("click", async () => {
+    if (!isMaster || state.phase !== "RESOLUTION") return;
+    const responsibility = ui.masterRespSelect.value;
+    const actionId = ui.masterActionSelect.value;
+    const result = resolveResponsibility(state, responsibility, actionId);
+    await publishState();
+    await publishPhase();
+    render();
+
+    if (result.failed) {
+      showPopup("Missão Falhou", state.lastFailure || "Falha crítica na execução.");
       return;
     }
 
-    await push(ref(db, DB_PATHS.inputs), payload);
-    const txt = ui.submitBtn.textContent;
-    ui.submitBtn.textContent = "ENVIADO";
-    setTimeout(() => { ui.submitBtn.textContent = txt; }, 700);
+    if (state.phase === "VOTING") {
+      runTimerLoop();
+    }
   });
 
-  ui.startBtn?.addEventListener("click", () => {
-    if (isMaster) runMasterTimer();
-  });
+  ui.startBtn.addEventListener("click", runTimerLoop);
 
-  ui.resetBtn?.addEventListener("click", async () => {
+  ui.resetBtn.addEventListener("click", async () => {
     if (!isMaster) return;
-    if (interval) clearInterval(interval);
-    interval = null;
+    if (timer) clearInterval(timer);
     running = false;
-    resetSimulation(state, state.mode);
-    await remove(ref(db, DB_PATHS.inputs));
+    timer = null;
+    resetForNewMode(state, state.mode);
+    await remove(ref(db, DB.inputs));
     await publishState();
-    await publishPhaseInfo();
+    await publishPhase();
     render();
   });
 }
@@ -367,19 +386,16 @@ async function init() {
   bindRealtime();
   bindUI();
 
-  if (ui.loadingStatus) ui.loadingStatus.textContent = "Pronto.";
-  if (ui.startExperienceBtn) {
-    ui.startExperienceBtn.disabled = false;
-    ui.startExperienceBtn.textContent = "INICIAR EXPERIÊNCIA";
-  }
+  ui.loadingStatus.textContent = "Pronto.";
+  ui.startExperienceBtn.disabled = false;
 
   if (isMaster) {
-    showScreen("bootScreen");
-    resetSimulation(state, "G1");
+    resetForNewMode(state, "G1");
     await publishState();
-    await publishPhaseInfo();
+    await publishPhase();
+    show("bootScreen");
   } else {
-    showScreen("gameScreen");
+    show("bootScreen");
   }
 
   render();
@@ -387,5 +403,5 @@ async function init() {
 
 init().catch((err) => {
   console.error(err);
-  if (ui.loadingStatus) ui.loadingStatus.textContent = "Falha ao iniciar.";
+  ui.loadingStatus.textContent = "Falha ao iniciar.";
 });

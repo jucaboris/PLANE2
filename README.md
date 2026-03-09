@@ -1,35 +1,26 @@
-# Sky Authority (Firebase Multiplayer)
+# Sky Authority v3
 
-Simulador educacional estático (HTML/CSS/JS + Firebase Realtime Database) para dinâmica presencial com **Mestre** no telão e **Clientes** no celular.
+Dinâmica multiplayer em tempo real (Firebase RTDB) com **Mestre** no telão e **múltiplos celulares por perfil**.
 
-## Modos de acesso
+## URLs
 - Mestre: `index.html?master=true`
-- Cliente: `index.html?role=pilot|engineer|cabin|copilot`
+- Comando: `index.html?role=pilot`
+- Negociador: `index.html?role=engineer`
+- Cabine: `index.html?role=cabin`
+- Esquadrão Antibomba: `index.html?role=copilot`
 
-## Nova dinâmica (v2)
-- 3 simulações curtas (uma por modo): **G1**, **G2** e **G3**.
-- Cada simulação dura **180 segundos**.
-- Não há PIN/senha.
+## Regras implementadas
+- Rodadas de **2 minutos**.
+- Votação ao vivo por responsabilidade: Comando, Negociador, Cabine, Esquadrão Antibomba.
+- Mestre vê percentual/votos em tempo real por ação e executa responsabilidade por responsabilidade.
+- Falha imediata se Mestre executar ação incorreta em qualquer responsabilidade.
+- G1: apenas Comando vota/executa por todas as responsabilidades (demais bloqueados com popup).
+- G2: todos votam em todas as responsabilidades (punição por conflito quando há voto em ações opostas da mesma responsabilidade).
+- G3: cada perfil vota apenas na própria responsabilidade.
+- Ao fim do tempo de votação, clientes recebem popup "ações em progresso" até o Mestre concluir.
 
-## Papéis
-- `pilot`: **Comando**
-- `engineer`: **Negociador**
-- `cabin`: **Cabine**
-- `copilot`: **Esquadrão Antibomba**
-
-## Barras
-- Controle de Pânico
-- Tempo
-- Integridade da Cabine
-
-## Regras por modo
-- **G1:** primeiro jogador que executar uma ação vira o único autorizado a executar no restante da simulação.
-- **G2:** todos podem decidir tudo; ações repetidas e conflitantes geram punições.
-- **G3:** cada papel executa apenas seu domínio.
-
-## Arquivos principais
-- `index.html` — interface principal
-- `config.js` — parâmetros, ações e efeitos
-- `engine.js` — regras de simulação e validação de inputs
-- `db.js` — conexão Firebase CDN
-- `ui.js` — sincronização tempo real Mestre/Clientes
+## Decisões corretas
+- Comando: **Prisão pela retaguarda**.
+- Negociador: **Negociação emocional**.
+- Cabine: **Manter passageiros calmos**.
+- Esquadrão Antibomba: **Cortar fio vermelho**.
