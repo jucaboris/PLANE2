@@ -314,13 +314,6 @@ function render() {
   ui.actionChoiceLabel.style.display = isMaster ? "none" : "block";
   ui.masterCockpitControls.style.display = isMaster ? "block" : "none";
 
-  if (isMaster) {
-    ui.masterExecuteBtn.disabled = state.gameOver;
-    ui.masterExecuteBtn.textContent = "Executar tarefa";
-    if (ui.masterEndTimeBtn) ui.masterEndTimeBtn.disabled = state.phase !== "VOTING" || state.gameOver;
-    if (ui.masterNextModeBtn) ui.masterNextModeBtn.disabled = state.phase === "VOTING";
-  }
-
   ui.roleChoice.style.display = isMaster ? "none" : "grid";
   ui.actionButtons.style.display = isMaster ? "none" : "grid";
   ui.masterCockpitControls.style.display = isMaster ? "block" : "none";
@@ -328,6 +321,8 @@ function render() {
   if (isMaster) {
     ui.masterExecuteBtn.disabled = state.phase !== "RESOLUTION" || state.gameOver;
     ui.masterExecuteBtn.textContent = state.phase === "RESOLUTION" ? "Executar responsabilidade" : "Aguardar fim do tempo para executar";
+    if (ui.masterEndTimeBtn) ui.masterEndTimeBtn.disabled = state.phase !== "VOTING" || state.gameOver;
+    if (ui.masterNextModeBtn) ui.masterNextModeBtn.disabled = state.phase === "VOTING";
   }
 
   if (!isMaster && state.waitingForResult && state.phase === "RESOLUTION") {

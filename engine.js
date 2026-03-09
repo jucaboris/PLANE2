@@ -7,10 +7,6 @@ function now() {
   return Date.now();
 }
 
-function clamp(v) {
-  return Math.max(CFG.resources.min, Math.min(CFG.resources.max, v));
-}
-
 function logLine(state, text, kind = "info") {
   state.log.push({ ts: now(), kind, text });
 }
@@ -40,7 +36,6 @@ export function makeInitialState() {
     round: 1,
     gameOver: false,
     waitingForResult: false,
-    resources: { ...CFG.resources.initial },
     roundInfo: {
       durationSec: CFG.roundDurationSec,
       timeLeft: CFG.roundDurationSec,
@@ -62,7 +57,6 @@ export function resetForNewMode(state, mode) {
   state.round = 1;
   state.gameOver = false;
   state.waitingForResult = false;
-  state.resources = { ...fresh.resources };
   state.roundInfo = { ...fresh.roundInfo, resolved: blankResolved() };
   state.votes = blankVoteState();
   state.stats = { totalVotes: 0, conflictsG2: 0 };
@@ -122,28 +116,12 @@ export function submitVote(state, { playerRole, responsibility, actionId }) {
 export function tickVoting(state, deltaSec = 1) {
   if (state.phase !== "VOTING" || state.gameOver) return;
   state.roundInfo.timeLeft = Math.max(0, state.roundInfo.timeLeft - deltaSec);
-  state.resources.tempo = clamp((state.roundInfo.timeLeft / CFG.roundDurationSec) * 100);
-  state.resources.panicControl = clamp(state.resources.panicControl - CFG.resources.passiveDrainPerSecond.panicControl * deltaSec);
-  state.resources.cabinIntegrity = clamp(state.resources.cabinIntegrity - CFG.resources.passiveDrainPerSecond.cabinIntegrity * deltaSec);
-
-  if (state.resources.panicControl <= 0 || state.resources.cabinIntegrity <= 0) {
-    state.phase = "END";
-    state.gameOver = true;
-    state.lastFailure = "Recursos críticos zerados durante a votação.";
-    logLine(state, "💥 Missão falhou por recursos críticos durante votação.", "bad");
-    return;
-  }
 
   if (state.roundInfo.timeLeft <= 0) {
     state.phase = "RESOLUTION";
     state.waitingForResult = true;
     logLine(state, "Tempo encerrado. Aguardando execução do Mestre.", "warn");
   }
-}
-
-function applyEffect(state, effect) {
-  state.resources.panicControl = clamp(state.resources.panicControl + (effect.panicControl || 0));
-  state.resources.cabinIntegrity = clamp(state.resources.cabinIntegrity + (effect.cabinIntegrity || 0));
 }
 
 export function getVoteSummaryForResponsibility(state, responsibility) {
@@ -174,7 +152,6 @@ export function resolveResponsibility(state, responsibility, actionId) {
   if (!cfg.actions[actionId]) return { ok: false, reason: "Ação inválida" };
 
   if (hasConflictG2(state, responsibility)) {
-    applyEffect(state, CFG.g2.conflictPenalty);
     state.stats.conflictsG2 += 1;
     logLine(state, `⚠️ Conflito de votos no G2 em ${cfg.label}.`, "warn");
   }
@@ -189,7 +166,6 @@ export function resolveResponsibility(state, responsibility, actionId) {
   };
 
   if (!correct) {
-    applyEffect(state, cfg.actions[actionId].failEffect || {});
     state.phase = "END";
     state.gameOver = true;
     state.lastFailure = cfg.failReason;
@@ -197,7 +173,6 @@ export function resolveResponsibility(state, responsibility, actionId) {
     return { ok: true, failed: true, completedAllResponsibilities: false };
   }
 
-  applyEffect(state, cfg.actions[actionId].successEffect || {});
   logLine(state, `✅ ${cfg.label} executou decisão correta (${pickedLabel}).`, "ok");
 
   const pending = RESPONSIBILITIES.find((r) => !state.roundInfo.resolved[r]);
