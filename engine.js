@@ -194,7 +194,7 @@ export function resolveResponsibility(state, responsibility, actionId) {
     state.gameOver = true;
     state.lastFailure = cfg.failReason;
     logLine(state, `❌ ${cfg.label} executou decisão incorreta (${pickedLabel}). ${cfg.failReason}`, "bad");
-    return { ok: true, failed: true };
+    return { ok: true, failed: true, completedAllResponsibilities: false };
   }
 
   applyEffect(state, cfg.actions[actionId].successEffect || {});
@@ -205,6 +205,7 @@ export function resolveResponsibility(state, responsibility, actionId) {
 
   if (!pending) {
     state.waitingForResult = false;
+    const completedAllResponsibilities = true;
     if (state.round >= CFG.maxRounds) {
       state.phase = "END";
       state.gameOver = true;
@@ -213,9 +214,11 @@ export function resolveResponsibility(state, responsibility, actionId) {
       state.round += 1;
       startVotingRound(state);
     }
+
+    return { ok: true, failed: false, completedAllResponsibilities };
   }
 
-  return { ok: true, failed: false };
+  return { ok: true, failed: false, completedAllResponsibilities: false };
 }
 
 export function formatLogForUI(item) {

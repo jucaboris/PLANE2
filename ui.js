@@ -33,6 +33,63 @@ let selectedResponsibility = CFG.roles[myRole].responsibility;
 let selectedAction = null;
 let masterSelectedResponsibility = "command";
 let masterSelectedAction = null;
+let introShownInRound = false;
+
+const OBJECTIVES_TEXT = `\
+G1 — Hierarquia total:
+- Apenas o Comando vota e define todas as responsabilidades.
+- Objetivo: testar decisões centralizadas sob pressão.
+
+G2 — Decisão coletiva:
+- Todos podem votar em todas as responsabilidades.
+- Objetivo: avaliar coordenação e reduzir conflitos entre visões diferentes.
+
+G3 — Especialização:
+- Cada personagem vota apenas na própria responsabilidade.
+- Objetivo: consolidar autonomia técnica de cada papel.
+
+Missão de sucesso:
+Executar corretamente, em sequência:
+1) Conter ameaça principal
+2) Reduzir risco por negociação
+3) Estabilizar os passageiros
+4) Neutralizar o explosivo.`;
+
+const INSTRUCTIONS_TEXT = `\
+Boas práticas por personagem:
+
+Comando:
+- Priorização: impedir ação imediata do agressor.
+- Evite ações de alto impacto sem confirmação do contexto.
+
+Negociador:
+- Busque reduzir impulso e tensão emocional do agressor.
+- Mantenha linguagem clara, calma e sem confronto.
+
+Cabine:
+- Foque em estabilidade e previsibilidade dos passageiros.
+- Evite movimentação brusca e ordens contraditórias.
+
+Esquadrão Antibomba:
+- Só execute procedimento com validação técnica.
+- Evite ação por tentativa e erro em dispositivo ativo.
+
+Mestre:
+- Execute cada responsabilidade no painel após votação.
+- Em erro: a missão falha e o motivo é exibido.
+- Em acerto: siga para a próxima responsabilidade até concluir as quatro.`;
+
+const STORYTELLING_TEXT = `\
+Um voo comercial entrou em estado crítico.
+Há uma ameaça ativa na aeronave, passageiros em pânico e indícios de explosivo a bordo.
+
+Seu time precisa agir em cadeia, sem rupturas:
+- Comando contém a ameaça principal.
+- Negociador reduz risco por negociação.
+- Cabine estabiliza os passageiros.
+- Esquadrão Antibomba neutraliza o explosivo.
+
+Cada decisão pode salvar ou encerrar a missão. Mantenham coordenação total.`;
 
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -40,6 +97,8 @@ const ui = {
   gameScreen: $("gameScreen"),
   loadingStatus: $("loadingStatus"),
   startExperienceBtn: $("startExperienceBtn"),
+  objectivesBtn: $("objectivesBtn"),
+  instructionsBtn: $("instructionsBtn"),
   modeBadge: $("modeBadge"),
   phase: $("phase"),
   round: $("round"),
@@ -325,6 +384,15 @@ async function runTimerLoop() {
   }, 1000);
 }
 
+async function startRoundWithStorytelling() {
+  if (!isMaster || running || state.phase === "VOTING") return;
+  if (!introShownInRound) {
+    showPopup("Briefing da Missão", STORYTELLING_TEXT);
+    introShownInRound = true;
+  }
+  await runTimerLoop();
+}
+
 async function forceEndVotingNow() {
   if (!isMaster || state.phase !== "VOTING") return;
   tickVoting(state, state.roundInfo.timeLeft || 0);
@@ -348,6 +416,7 @@ async function nextMode() {
   }
   running = false;
   resetForNewMode(state, next);
+  introShownInRound = false;
   masterSelectedResponsibility = "command";
   masterSelectedAction = null;
   await remove(ref(db, DB.inputs));
@@ -359,6 +428,8 @@ async function nextMode() {
 function bindUI() {
   ui.popupCloseBtn.addEventListener("click", hidePopup);
   ui.startExperienceBtn.addEventListener("click", () => show("gameScreen"));
+  ui.objectivesBtn?.addEventListener("click", () => showPopup("Objetivos", OBJECTIVES_TEXT));
+  ui.instructionsBtn?.addEventListener("click", () => showPopup("Instruções", INSTRUCTIONS_TEXT));
 
   ui.submitBtn.addEventListener("click", async () => {
     if (isMaster || !selectedAction) return;
@@ -387,6 +458,10 @@ function bindUI() {
     const actionId = masterSelectedAction;
     if (!responsibility || !actionId) return;
     const result = resolveResponsibility(state, responsibility, actionId);
+    if (!result.ok) {
+      showPopup("Execução indisponível", result.reason || "A ação não pôde ser executada neste momento.");
+      return;
+    }
     await publishState();
     await publishPhase();
     render();
@@ -396,12 +471,18 @@ function bindUI() {
       return;
     }
 
+    if (result.completedAllResponsibilities) {
+      showPopup("Missão Concluída", "Todas as responsabilidades foram executadas com sucesso: ameaça contida, negociação bem-sucedida, passageiros estabilizados e explosivo neutralizado.");
+    } else {
+      showPopup("Ação correta", "Execução validada com sucesso. Prossiga para a próxima responsabilidade.");
+    }
+
     if (state.phase === "VOTING") runTimerLoop();
   });
 
   ui.masterEndTimeBtn?.addEventListener("click", forceEndVotingNow);
   ui.masterNextModeBtn?.addEventListener("click", nextMode);
-  ui.startBtn.addEventListener("click", runTimerLoop);
+  ui.startBtn.addEventListener("click", startRoundWithStorytelling);
 
   ui.resetBtn.addEventListener("click", async () => {
     if (!isMaster) return;
@@ -409,6 +490,7 @@ function bindUI() {
     running = false;
     timer = null;
     resetForNewMode(state, state.mode);
+    introShownInRound = false;
     masterSelectedResponsibility = "command";
     masterSelectedAction = null;
     await remove(ref(db, DB.inputs));
