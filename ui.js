@@ -522,9 +522,18 @@ async function init() {
   ui.startExperienceBtn.disabled = false;
 
   if (isMaster) {
-    resetForNewMode(state, "G1");
-    await publishState();
-    await publishPhase();
+    try {
+      resetForNewMode(state, "G1");
+      await publishState();
+      await publishPhase();
+    } catch (err) {
+      console.error("Falha ao sincronizar com o banco na inicialização:", err);
+      ui.loadingStatus.textContent = "Pronto (modo local sem sincronização).";
+      showPopup(
+        "Banco indisponível",
+        "Não foi possível sincronizar com o Firebase. Você ainda pode iniciar localmente para validar interface e fluxo.",
+      );
+    }
   }
 
   show("bootScreen");
