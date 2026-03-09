@@ -19,6 +19,13 @@ const myRole = ["pilot", "engineer", "cabin", "copilot"].includes((params.get("r
 
 const DB = { gameState: "gameState", phaseInfo: "phaseInfo", inputs: "inputs" };
 const RESPONSIBILITIES = Object.keys(CFG.responsibilities);
+const MODE_ORDER = ["G1", "G2", "G3"];
+const ACTION_CONTEXT = {
+  command: "Conter ameaça principal",
+  negotiator: "Reduzir risco por negociação",
+  cabin: "Estabilizar os passageiros",
+  bomb: "Neutralizar o explosivo",
+};
 let state = makeInitialState();
 let running = false;
 let timer = null;
@@ -30,7 +37,6 @@ let masterSelectedAction = null;
 const $ = (id) => document.getElementById(id);
 const ui = {
   bootScreen: $("bootScreen"),
-  storyScreen: $("storyScreen"),
   gameScreen: $("gameScreen"),
   loadingStatus: $("loadingStatus"),
   startExperienceBtn: $("startExperienceBtn"),
@@ -57,8 +63,6 @@ const ui = {
   masterEndTimeBtn: $("masterEndTimeBtn"),
   masterNextModeBtn: $("masterNextModeBtn"),
   log: $("log"),
-  storyGuidance: $("storyGuidance"),
-  storyStartBtn: $("storyStartBtn"),
   popup: $("statusPopup"),
   popupTitle: $("popupTitle"),
   popupMessage: $("popupMessage"),
@@ -66,7 +70,7 @@ const ui = {
 };
 
 function show(screenId) {
-  [ui.bootScreen, ui.storyScreen, ui.gameScreen].forEach((s) => s?.classList.remove("active"));
+  [ui.bootScreen, ui.gameScreen].forEach((s) => s?.classList.remove("active"));
   $(screenId)?.classList.add("active");
 }
 
@@ -236,8 +240,8 @@ function render() {
   if (isMaster) {
     ui.masterExecuteBtn.disabled = state.gameOver;
     ui.masterExecuteBtn.textContent = "Executar tarefa";
-    ui.masterEndTimeBtn.disabled = state.phase !== "VOTING" || state.gameOver;
-    ui.masterNextModeBtn.disabled = state.phase === "VOTING";
+    if (ui.masterEndTimeBtn) ui.masterEndTimeBtn.disabled = state.phase !== "VOTING" || state.gameOver;
+    if (ui.masterNextModeBtn) ui.masterNextModeBtn.disabled = state.phase === "VOTING";
   }
 
   ui.roleChoice.style.display = isMaster ? "none" : "grid";
@@ -354,30 +358,7 @@ async function nextMode() {
 
 function bindUI() {
   ui.popupCloseBtn.addEventListener("click", hidePopup);
-  ui.startExperienceBtn.addEventListener("click", () => show(isMaster ? "storyScreen" : "gameScreen"));
-
-  document.querySelectorAll(".group-pick").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      if (!isMaster) return;
-      const mode = btn.dataset.mode;
-      resetForNewMode(state, mode);
-      masterSelectedResponsibility = "command";
-      masterSelectedAction = null;
-      selectedResponsibility = CFG.roles[myRole].responsibility;
-      selectedAction = null;
-      ui.storyGuidance.textContent = modeHint();
-      ui.storyStartBtn.disabled = false;
-      document.querySelectorAll(".group-pick").forEach((x) => x.classList.toggle("active", x === btn));
-      await publishState();
-      await publishPhase();
-      render();
-    });
-  });
-
-  ui.storyStartBtn.addEventListener("click", () => {
-    show("gameScreen");
-    if (isMaster) runTimerLoop();
-  });
+  ui.startExperienceBtn.addEventListener("click", () => show("gameScreen"));
 
   ui.submitBtn.addEventListener("click", async () => {
     if (isMaster || !selectedAction) return;
@@ -418,8 +399,8 @@ function bindUI() {
     if (state.phase === "VOTING") runTimerLoop();
   });
 
-  ui.masterEndTimeBtn.addEventListener("click", forceEndVotingNow);
-  ui.masterNextModeBtn.addEventListener("click", nextMode);
+  ui.masterEndTimeBtn?.addEventListener("click", forceEndVotingNow);
+  ui.masterNextModeBtn?.addEventListener("click", nextMode);
   ui.startBtn.addEventListener("click", runTimerLoop);
 
   ui.resetBtn.addEventListener("click", async () => {
