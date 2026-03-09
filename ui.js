@@ -36,6 +36,26 @@ let masterSelectedAction = null;
 let introShownInRound = false;
 let pendingRoundStart = false;
 
+function normalizeStateShape(nextState) {
+  const fresh = makeInitialState();
+  const merged = { ...fresh, ...(nextState || {}) };
+
+  merged.roundInfo = {
+    ...fresh.roundInfo,
+    ...(nextState?.roundInfo || {}),
+    resolved: {
+      ...fresh.roundInfo.resolved,
+      ...(nextState?.roundInfo?.resolved || {}),
+    },
+  };
+
+  merged.votes = { ...fresh.votes, ...(nextState?.votes || {}) };
+  merged.stats = { ...fresh.stats, ...(nextState?.stats || {}) };
+  merged.log = Array.isArray(nextState?.log) ? nextState.log : [];
+
+  return merged;
+}
+
 const OBJECTIVES_TEXT = `\
 G1 — Hierarquia total:
 - Apenas o Comando vota e define todas as responsabilidades.
@@ -348,7 +368,7 @@ function bindRealtime() {
   onValue(ref(db, DB.gameState), (snap) => {
     const v = snap.val();
     if (!v) return;
-    state = v;
+    state = normalizeStateShape(v);
     render();
   });
 
@@ -441,12 +461,12 @@ async function nextMode() {
 }
 
 function bindUI() {
-  ui.popupCloseBtn.addEventListener("click", hidePopup);
-  ui.startExperienceBtn.addEventListener("click", () => show("gameScreen"));
+  ui.popupCloseBtn?.addEventListener("click", hidePopup);
+  ui.startExperienceBtn?.addEventListener("click", () => show("gameScreen"));
   ui.objectivesBtn?.addEventListener("click", () => showPopup("Objetivos", OBJECTIVES_TEXT));
   ui.instructionsBtn?.addEventListener("click", () => showPopup("Instruções", INSTRUCTIONS_TEXT));
 
-  ui.submitBtn.addEventListener("click", async () => {
+  ui.submitBtn?.addEventListener("click", async () => {
     if (isMaster || !selectedAction) return;
     if (state.phase !== "VOTING" || state.gameOver) {
       showPopup("Votação indisponível", "A votação não está ativa neste momento.");
@@ -466,7 +486,7 @@ function bindUI() {
     render();
   });
 
-  ui.masterExecuteBtn.addEventListener("click", async () => {
+  ui.masterExecuteBtn?.addEventListener("click", async () => {
     if (!isMaster || state.phase !== "RESOLUTION") return;
     const responsibility = masterSelectedResponsibility;
     const actionId = masterSelectedAction;
@@ -496,9 +516,9 @@ function bindUI() {
 
   ui.masterEndTimeBtn?.addEventListener("click", forceEndVotingNow);
   ui.masterNextModeBtn?.addEventListener("click", nextMode);
-  ui.startBtn.addEventListener("click", startRoundWithStorytelling);
+  ui.startBtn?.addEventListener("click", startRoundWithStorytelling);
 
-  ui.resetBtn.addEventListener("click", async () => {
+  ui.resetBtn?.addEventListener("click", async () => {
     if (!isMaster) return;
     if (timer) clearInterval(timer);
     running = false;
