@@ -34,6 +34,7 @@ let selectedAction = null;
 let masterSelectedResponsibility = "command";
 let masterSelectedAction = null;
 let introShownInRound = false;
+let pendingRoundStart = false;
 
 const OBJECTIVES_TEXT = `\
 G1 — Hierarquia total:
@@ -141,6 +142,11 @@ function showPopup(title, message) {
 
 function hidePopup() {
   ui.popup.classList.remove("active");
+
+  if (pendingRoundStart && isMaster && state.phase === "IDLE") {
+    pendingRoundStart = false;
+    runTimerLoop();
+  }
 }
 
 function canRoleVote(role, responsibility) {
@@ -174,6 +180,10 @@ function modeHint() {
 function renderRoleChoice() {
   ui.roleChoice.innerHTML = "";
   const allowed = state.mode === "G2" || (state.mode === "G1" && myRole === "pilot");
+  const ownResponsibility = CFG.roles[myRole].responsibility;
+
+  if (state.mode === "G3") selectedResponsibility = ownResponsibility;
+  if (!RESPONSIBILITIES.includes(selectedResponsibility)) selectedResponsibility = ownResponsibility;
 
   RESPONSIBILITIES.forEach((resp) => {
     const btn = document.createElement("button");
@@ -230,10 +240,18 @@ function renderMasterSelectors() {
   if (!isMaster) return;
 
   const activeResp = state.roundInfo.activeResponsibility || RESPONSIBILITIES[0];
-  if (!RESPONSIBILITIES.includes(masterSelectedResponsibility)) masterSelectedResponsibility = activeResp;
+  const unresolved = RESPONSIBILITIES.filter((resp) => !state.roundInfo.resolved[resp]);
+
+  if (state.phase === "RESOLUTION") {
+    if (!unresolved.includes(masterSelectedResponsibility)) {
+      masterSelectedResponsibility = unresolved[0] || activeResp;
+    }
+  } else if (!RESPONSIBILITIES.includes(masterSelectedResponsibility)) {
+    masterSelectedResponsibility = activeResp;
+  }
 
   ui.masterRespButtons.innerHTML = RESPONSIBILITIES.map((resp) => `
-    <button class="btn ${masterSelectedResponsibility === resp ? "active" : ""}" data-master-resp="${resp}">${CFG.responsibilities[resp].label}</button>
+    <button class="btn ${masterSelectedResponsibility === resp ? "active" : ""}" data-master-resp="${resp}" ${state.roundInfo.resolved[resp] ? "disabled" : ""}>${CFG.responsibilities[resp].label}</button>
   `).join("");
 
   ui.masterRespButtons.querySelectorAll("[data-master-resp]").forEach((btn) => {
@@ -296,13 +314,6 @@ function render() {
   ui.actionChoiceLabel.style.display = isMaster ? "none" : "block";
   ui.masterCockpitControls.style.display = isMaster ? "block" : "none";
 
-  if (isMaster) {
-    ui.masterExecuteBtn.disabled = state.gameOver;
-    ui.masterExecuteBtn.textContent = "Executar tarefa";
-    if (ui.masterEndTimeBtn) ui.masterEndTimeBtn.disabled = state.phase !== "VOTING" || state.gameOver;
-    if (ui.masterNextModeBtn) ui.masterNextModeBtn.disabled = state.phase === "VOTING";
-  }
-
   ui.roleChoice.style.display = isMaster ? "none" : "grid";
   ui.actionButtons.style.display = isMaster ? "none" : "grid";
   ui.masterCockpitControls.style.display = isMaster ? "block" : "none";
@@ -310,6 +321,8 @@ function render() {
   if (isMaster) {
     ui.masterExecuteBtn.disabled = state.phase !== "RESOLUTION" || state.gameOver;
     ui.masterExecuteBtn.textContent = state.phase === "RESOLUTION" ? "Executar responsabilidade" : "Aguardar fim do tempo para executar";
+    if (ui.masterEndTimeBtn) ui.masterEndTimeBtn.disabled = state.phase !== "VOTING" || state.gameOver;
+    if (ui.masterNextModeBtn) ui.masterNextModeBtn.disabled = state.phase === "VOTING";
   }
 
   if (!isMaster && state.waitingForResult && state.phase === "RESOLUTION") {
@@ -389,6 +402,8 @@ async function startRoundWithStorytelling() {
   if (!introShownInRound) {
     showPopup("Briefing da Missão", STORYTELLING_TEXT);
     introShownInRound = true;
+    pendingRoundStart = true;
+    return;
   }
   await runTimerLoop();
 }
@@ -433,9 +448,8 @@ function bindUI() {
 
   ui.submitBtn.addEventListener("click", async () => {
     if (isMaster || !selectedAction) return;
-
-    if (!canRoleVote(myRole, selectedResponsibility)) {
-      showPopup("Bloqueado pelo Comando", "No G1, apenas o Comando pode executar decisões desta rodada.");
+    if (state.phase !== "VOTING" || state.gameOver) {
+      showPopup("Votação indisponível", "A votação não está ativa neste momento.");
       return;
     }
 
@@ -447,7 +461,7 @@ function bindUI() {
     };
 
     await push(ref(db, DB.inputs), payload);
-    showPopup("Voto registrado", "Seu voto foi computado ao vivo no painel do Mestre.");
+    showPopup("Voto registrado", "Seu voto foi enviado para processamento no painel do Mestre.");
 
     render();
   });
