@@ -18,12 +18,11 @@ const myRole = ["pilot", "engineer", "cabin", "copilot"].includes((params.get("r
   : "pilot";
 
 const DB = { gameState: "gameState", phaseInfo: "phaseInfo", inputs: "inputs" };
-
 const RESPONSIBILITIES = Object.keys(CFG.responsibilities);
 let state = makeInitialState();
 let running = false;
 let timer = null;
-let selectedResponsibility = isMaster ? "command" : CFG.roles[myRole].responsibility;
+let selectedResponsibility = CFG.roles[myRole].responsibility;
 let selectedAction = null;
 let masterSelectedResponsibility = "command";
 let masterSelectedAction = null;
@@ -43,6 +42,8 @@ const ui = {
   myRoleImage: $("myRoleImage"),
   myRoleLabel: $("myRoleLabel"),
   modeHint: $("modeHint"),
+  characterChoiceLabel: $("characterChoiceLabel"),
+  actionChoiceLabel: $("actionChoiceLabel"),
   roleChoice: $("roleChoice"),
   actionButtons: $("actionButtons"),
   submitBtn: $("submitBtn"),
@@ -53,6 +54,8 @@ const ui = {
   masterRespButtons: $("masterRespButtons"),
   masterActionButtons: $("masterActionButtons"),
   masterExecuteBtn: $("masterExecuteBtn"),
+  masterEndTimeBtn: $("masterEndTimeBtn"),
+  masterNextModeBtn: $("masterNextModeBtn"),
   log: $("log"),
   storyGuidance: $("storyGuidance"),
   storyStartBtn: $("storyStartBtn"),
@@ -112,7 +115,7 @@ function renderRoleChoice() {
   RESPONSIBILITIES.forEach((resp) => {
     const btn = document.createElement("button");
     btn.className = `btn ${selectedResponsibility === resp ? "active" : ""}`;
-    btn.textContent = CFG.responsibilities[resp].label;
+    btn.textContent = ACTION_CONTEXT[resp] || CFG.responsibilities[resp].label;
     btn.disabled = !allowed;
     btn.addEventListener("click", () => {
       selectedResponsibility = resp;
@@ -147,11 +150,14 @@ function renderMasterVotes() {
 
   const blocks = RESPONSIBILITIES.map((resp) => {
     const summary = getVoteSummaryForResponsibility(state, resp);
-    const actions = summary.actions.map((a) => {
-      const label = CFG.responsibilities[resp].actions[a.actionId].label;
-      return `<div>${label}: <b>${a.votes}</b> votos (${a.pct}%)</div>`;
-    }).join("");
-    return `<div class="card" style="margin-bottom:8px"><b>${CFG.responsibilities[resp].label}</b><div>${actions || "Sem votos"}</div></div>`;
+    const actions = summary.actions
+      .map((a) => {
+        const label = CFG.responsibilities[resp].actions[a.actionId].label;
+        return `<div>${label}: <b>${a.votes}</b> votos (${a.pct}%)</div>`;
+      })
+      .join("");
+
+    return `<div class="card" style="margin-bottom:8px"><b>Personagem: ${CFG.responsibilities[resp].label}</b><div><small>Ação: ${ACTION_CONTEXT[resp]}</small></div><div>${actions || "Sem votos"}</div></div>`;
   }).join("");
 
   ui.masterVotes.innerHTML = blocks;
@@ -206,7 +212,7 @@ function render() {
 
   const roleCfg = CFG.roles[myRole];
   ui.myRoleImage.src = roleCfg.image;
-  ui.myRoleLabel.textContent = `${roleCfg.label} (${isMaster ? "Mestre" : "Cliente"})`;
+  ui.myRoleLabel.textContent = isMaster ? "Mestre (controle da rodada)" : `${roleCfg.label} (Personagem)`;
   ui.cockpitTitle.textContent = isMaster ? "Cockpit do Mestre" : `Cockpit ${roleCfg.label}`;
   ui.modeHint.textContent = modeHint();
 
@@ -221,6 +227,18 @@ function render() {
 
   ui.startBtn.style.display = isMaster ? "inline-block" : "none";
   ui.resetBtn.style.display = isMaster ? "inline-block" : "none";
+  ui.roleChoice.style.display = isMaster ? "none" : "grid";
+  ui.actionButtons.style.display = isMaster ? "none" : "grid";
+  ui.characterChoiceLabel.style.display = isMaster ? "none" : "block";
+  ui.actionChoiceLabel.style.display = isMaster ? "none" : "block";
+  ui.masterCockpitControls.style.display = isMaster ? "block" : "none";
+
+  if (isMaster) {
+    ui.masterExecuteBtn.disabled = state.gameOver;
+    ui.masterExecuteBtn.textContent = "Executar tarefa";
+    ui.masterEndTimeBtn.disabled = state.phase !== "VOTING" || state.gameOver;
+    ui.masterNextModeBtn.disabled = state.phase === "VOTING";
+  }
 
   ui.roleChoice.style.display = isMaster ? "none" : "grid";
   ui.actionButtons.style.display = isMaster ? "none" : "grid";
@@ -303,6 +321,37 @@ async function runTimerLoop() {
   }, 1000);
 }
 
+async function forceEndVotingNow() {
+  if (!isMaster || state.phase !== "VOTING") return;
+  tickVoting(state, state.roundInfo.timeLeft || 0);
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+  running = false;
+  await publishState();
+  await publishPhase();
+  render();
+}
+
+async function nextMode() {
+  if (!isMaster || state.phase === "VOTING") return;
+  const idx = MODE_ORDER.indexOf(state.mode);
+  const next = MODE_ORDER[(idx + 1) % MODE_ORDER.length];
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+  running = false;
+  resetForNewMode(state, next);
+  masterSelectedResponsibility = "command";
+  masterSelectedAction = null;
+  await remove(ref(db, DB.inputs));
+  await publishState();
+  await publishPhase();
+  render();
+}
+
 function bindUI() {
   ui.popupCloseBtn.addEventListener("click", hidePopup);
   ui.startExperienceBtn.addEventListener("click", () => show(isMaster ? "storyScreen" : "gameScreen"));
@@ -312,7 +361,9 @@ function bindUI() {
       if (!isMaster) return;
       const mode = btn.dataset.mode;
       resetForNewMode(state, mode);
-      selectedResponsibility = mode === "G2" ? "command" : CFG.roles[myRole].responsibility;
+      masterSelectedResponsibility = "command";
+      masterSelectedAction = null;
+      selectedResponsibility = CFG.roles[myRole].responsibility;
       selectedAction = null;
       ui.storyGuidance.textContent = modeHint();
       ui.storyStartBtn.disabled = false;
@@ -364,11 +415,11 @@ function bindUI() {
       return;
     }
 
-    if (state.phase === "VOTING") {
-      runTimerLoop();
-    }
+    if (state.phase === "VOTING") runTimerLoop();
   });
 
+  ui.masterEndTimeBtn.addEventListener("click", forceEndVotingNow);
+  ui.masterNextModeBtn.addEventListener("click", nextMode);
   ui.startBtn.addEventListener("click", runTimerLoop);
 
   ui.resetBtn.addEventListener("click", async () => {
@@ -377,6 +428,8 @@ function bindUI() {
     running = false;
     timer = null;
     resetForNewMode(state, state.mode);
+    masterSelectedResponsibility = "command";
+    masterSelectedAction = null;
     await remove(ref(db, DB.inputs));
     await publishState();
     await publishPhase();
@@ -395,11 +448,9 @@ async function init() {
     resetForNewMode(state, "G1");
     await publishState();
     await publishPhase();
-    show("bootScreen");
-  } else {
-    show("bootScreen");
   }
 
+  show("bootScreen");
   render();
 }
 

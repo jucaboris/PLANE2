@@ -22,6 +22,7 @@
     .ok{color:#93ff93}.warn{color:var(--warn)}.bad{color:var(--bad)}
     .portrait{width:56px;height:56px;border-radius:8px;object-fit:cover;border:1px solid #2f6f2f}
     #roleChoice .btn{min-width:140px}
+    .section-label{display:block;font-size:12px;opacity:.8;margin:8px 0 4px}
     .popup{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
     .popup.active{display:flex}
     .popup-card{background:#102010;border:1px solid #3a7a3a;border-radius:12px;max-width:560px;width:100%;padding:18px}
@@ -70,7 +71,9 @@
             </div>
           </div>
 
+          <label class="section-label" id="characterChoiceLabel">Personagem</label>
           <div class="grid grid-2" id="roleChoice"></div>
+          <label class="section-label" id="actionChoiceLabel">Ação</label>
           <div class="action-list" id="actionButtons"></div>
           <button id="submitBtn" class="btn">Votar</button>
 
