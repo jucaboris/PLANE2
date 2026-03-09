@@ -103,7 +103,7 @@ function publishPhase() {
     timeLeft: state.roundInfo.timeLeft,
     waitingForResult: state.waitingForResult,
     gameOver: state.gameOver,
-    lastFailure: state.lastFailure,
+    lastFailure: state.lastFailure ?? null,
   });
 }
 
