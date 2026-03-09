@@ -20,16 +20,13 @@ const myRole = ["pilot", "engineer", "cabin", "copilot"].includes((params.get("r
 const DB = { gameState: "gameState", phaseInfo: "phaseInfo", inputs: "inputs" };
 
 const RESPONSIBILITIES = Object.keys(CFG.responsibilities);
-const RESPONSIBILITY_TO_ROLE = Object.entries(CFG.roles).reduce((acc, [role, def]) => {
-  acc[def.responsibility] = role;
-  return acc;
-}, {});
-
 let state = makeInitialState();
 let running = false;
 let timer = null;
 let selectedResponsibility = isMaster ? "command" : CFG.roles[myRole].responsibility;
 let selectedAction = null;
+let masterSelectedResponsibility = "command";
+let masterSelectedAction = null;
 
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -51,15 +48,10 @@ const ui = {
   submitBtn: $("submitBtn"),
   startBtn: $("startBtn"),
   resetBtn: $("resetBtn"),
-  fuel: $("fuel"),
-  engine: $("engine"),
-  health: $("health"),
-  fuelBar: $("fuelBar"),
-  engineBar: $("engineBar"),
-  healthBar: $("healthBar"),
+  masterCockpitControls: $("masterCockpitControls"),
   masterVotes: $("masterVotes"),
-  masterRespSelect: $("masterRespSelect"),
-  masterActionSelect: $("masterActionSelect"),
+  masterRespButtons: $("masterRespButtons"),
+  masterActionButtons: $("masterActionButtons"),
   masterExecuteBtn: $("masterExecuteBtn"),
   log: $("log"),
   storyGuidance: $("storyGuidance"),
@@ -115,7 +107,7 @@ function modeHint() {
 
 function renderRoleChoice() {
   ui.roleChoice.innerHTML = "";
-  const allowed = state.mode === "G2" || isMaster || (state.mode === "G1" && myRole === "pilot");
+  const allowed = state.mode === "G2" || (state.mode === "G1" && myRole === "pilot");
 
   RESPONSIBILITIES.forEach((resp) => {
     const btn = document.createElement("button");
@@ -166,30 +158,44 @@ function renderMasterVotes() {
 }
 
 function renderMasterSelectors() {
-  if (!isMaster) {
-    ui.masterRespSelect.parentElement.style.display = "none";
-    ui.masterActionSelect.parentElement.style.display = "none";
-    ui.masterExecuteBtn.style.display = "none";
-    return;
-  }
+  if (!isMaster) return;
 
-  ui.masterRespSelect.innerHTML = RESPONSIBILITIES
-    .map((resp) => `<option value="${resp}">${CFG.responsibilities[resp].label}</option>`)
-    .join("");
+  const activeResp = state.roundInfo.activeResponsibility || RESPONSIBILITIES[0];
+  if (!RESPONSIBILITIES.includes(masterSelectedResponsibility)) masterSelectedResponsibility = activeResp;
 
-  ui.masterRespSelect.value = state.roundInfo.activeResponsibility || RESPONSIBILITIES[0];
+  ui.masterRespButtons.innerHTML = RESPONSIBILITIES.map((resp) => `
+    <button class="btn ${masterSelectedResponsibility === resp ? "active" : ""}" data-master-resp="${resp}">${CFG.responsibilities[resp].label}</button>
+  `).join("");
+
+  ui.masterRespButtons.querySelectorAll("[data-master-resp]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      masterSelectedResponsibility = btn.dataset.masterResp;
+      masterSelectedAction = null;
+      renderMasterSelectors();
+    });
+  });
+
   updateMasterActionOptions();
 }
 
 function updateMasterActionOptions() {
-  const resp = ui.masterRespSelect.value;
+  const resp = masterSelectedResponsibility;
   const actions = CFG.responsibilities[resp].actions;
   const summary = getVoteSummaryForResponsibility(state, resp);
-  const winner = summary.actions[0]?.actionId;
+  const winner = summary.actions[0]?.actionId || Object.keys(actions)[0];
 
-  ui.masterActionSelect.innerHTML = Object.entries(actions)
-    .map(([id, def]) => `<option value="${id}" ${winner === id ? "selected" : ""}>${def.label}</option>`)
+  if (!masterSelectedAction || !actions[masterSelectedAction]) masterSelectedAction = winner;
+
+  ui.masterActionButtons.innerHTML = Object.entries(actions)
+    .map(([id, def]) => `<button class="btn ${masterSelectedAction === id ? "active" : ""}" data-master-action="${id}">${def.label}</button>`)
     .join("");
+
+  ui.masterActionButtons.querySelectorAll("[data-master-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      masterSelectedAction = btn.dataset.masterAction;
+      renderMasterSelectors();
+    });
+  });
 }
 
 function render() {
@@ -203,13 +209,6 @@ function render() {
   ui.myRoleLabel.textContent = `${roleCfg.label} (${isMaster ? "Mestre" : "Cliente"})`;
   ui.cockpitTitle.textContent = isMaster ? "Cockpit do Mestre" : `Cockpit ${roleCfg.label}`;
   ui.modeHint.textContent = modeHint();
-
-  ui.fuel.textContent = Math.round(state.resources.panicControl);
-  ui.engine.textContent = Math.round(state.resources.tempo);
-  ui.health.textContent = Math.round(state.resources.cabinIntegrity);
-  ui.fuelBar.style.width = `${state.resources.panicControl}%`;
-  ui.engineBar.style.width = `${state.resources.tempo}%`;
-  ui.healthBar.style.width = `${state.resources.cabinIntegrity}%`;
 
   renderRoleChoice();
   renderActions();
@@ -225,6 +224,7 @@ function render() {
 
   ui.roleChoice.style.display = isMaster ? "none" : "grid";
   ui.actionButtons.style.display = isMaster ? "none" : "grid";
+  ui.masterCockpitControls.style.display = isMaster ? "block" : "none";
 
   if (isMaster) {
     ui.masterExecuteBtn.disabled = state.phase !== "RESOLUTION" || state.gameOver;
@@ -349,14 +349,11 @@ function bindUI() {
     render();
   });
 
-  ui.masterRespSelect.addEventListener("change", () => {
-    updateMasterActionOptions();
-  });
-
   ui.masterExecuteBtn.addEventListener("click", async () => {
     if (!isMaster || state.phase !== "RESOLUTION") return;
-    const responsibility = ui.masterRespSelect.value;
-    const actionId = ui.masterActionSelect.value;
+    const responsibility = masterSelectedResponsibility;
+    const actionId = masterSelectedAction;
+    if (!responsibility || !actionId) return;
     const result = resolveResponsibility(state, responsibility, actionId);
     await publishState();
     await publishPhase();

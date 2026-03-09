@@ -17,8 +17,6 @@
     .btn:disabled{opacity:.5;cursor:not-allowed}
     .btn.active{outline:2px solid var(--line)}
     .pill{padding:4px 10px;border:1px solid #3f6f3f;border-radius:999px}
-    .meter{height:14px;background:#0a0f0a;border:1px solid #2f5f2f;border-radius:999px;overflow:hidden}
-    .fill{height:100%;background:linear-gradient(90deg,#39ff14,#8eff76)}
     .action-list{display:grid;grid-template-columns:1fr;gap:8px}
     .log{height:220px;overflow:auto;border:1px solid #2a4b2a;padding:8px;background:#071007}
     .ok{color:#93ff93}.warn{color:var(--warn)}.bad{color:var(--bad)}
@@ -74,19 +72,25 @@
 
           <div class="grid grid-2" id="roleChoice"></div>
           <div class="action-list" id="actionButtons"></div>
-          <button id="submitBtn" class="btn">Votar / Executar</button>
+          <button id="submitBtn" class="btn">Votar</button>
+
+          <div id="masterCockpitControls" class="card" style="display:none;margin-top:10px">
+            <h4>Execução do Mestre</h4>
+            <div>
+              <label>Responsabilidade:</label>
+              <div class="grid grid-2" id="masterRespButtons"></div>
+            </div>
+            <div style="margin-top:8px">
+              <label>Ação para executar:</label>
+              <div class="action-list" id="masterActionButtons"></div>
+            </div>
+            <button id="masterExecuteBtn" class="btn">Executar responsabilidade</button>
+          </div>
 
           <div class="row" style="margin-top:10px">
             <button id="startBtn" class="btn">Iniciar rodada</button>
             <button id="resetBtn" class="btn">Resetar modo</button>
           </div>
-        </div>
-
-        <div class="card">
-          <h4>Recursos</h4>
-          <div>Controle de Pânico: <b id="fuel">0</b>%</div><div class="meter"><div class="fill" id="fuelBar"></div></div>
-          <div style="margin-top:8px">Tempo: <b id="engine">0</b>%</div><div class="meter"><div class="fill" id="engineBar"></div></div>
-          <div style="margin-top:8px">Integridade da Cabine: <b id="health">0</b>%</div><div class="meter"><div class="fill" id="healthBar"></div></div>
         </div>
       </div>
 
@@ -94,16 +98,6 @@
         <div class="card">
           <h4>Painel do Mestre (votos ao vivo)</h4>
           <div id="masterVotes"></div>
-          <hr>
-          <div class="row">
-            <label>Responsabilidade:</label>
-            <select id="masterRespSelect"></select>
-          </div>
-          <div class="row">
-            <label>Ação para executar:</label>
-            <select id="masterActionSelect"></select>
-          </div>
-          <button id="masterExecuteBtn" class="btn">Executar responsabilidade</button>
         </div>
 
         <div class="card">
